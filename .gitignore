@@ -1,6 +1,3 @@
-# Local course files (download from Canvas; the Week 4 deck contains a key)
-materials/
-
 # Secrets
 .env
 
