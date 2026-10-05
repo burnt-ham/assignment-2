@@ -1,0 +1,320 @@
+{
+  "meta": {
+    "comparison": "retrieval",
+    "services": [
+      [
+        "Answers and quizzes",
+        "not set: offline mode quotes passages instead of writing answers",
+        false
+      ],
+      [
+        "Text search by meaning",
+        "offline word-hashing (stand-in)",
+        false
+      ],
+      [
+        "Image search",
+        "offline page-text stand-in (no real image understanding)",
+        false
+      ],
+      [
+        "Reranking",
+        "offline word-overlap (stand-in)",
+        false
+      ],
+      [
+        "Reading text inside images",
+        "not set: image-only slides are found by image search only",
+        false
+      ]
+    ],
+    "documents": [
+      "syllabus-fall-2026.pdf",
+      "Week 2 - LLM Fundamentals.pptx",
+      "Week 3 - Prompt Engineering.pptx",
+      "Week 4 - Serving and Debugging.pptx",
+      "Week 5 - Context Engineering and RAG.pptx",
+      "Week 6 - Multimodal Generative AI.pptx"
+    ]
+  },
+  "rows": [
+    {
+      "setting": "hybrid",
+      "id": "Q1",
+      "type": "text",
+      "question": "When are the professor's office hours?",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom syllabus-fall-2026.pdf, page 1: \u201cMBAX 6418 \u2013 Fall 2026  Building Business Solutions  with Generative AI & LLMs    Course Meeting Information    Days  Time  Venue  Mondays  09:30 AM to 12:15 PM  WLAW 304  Thursdays  08:00 AM to 10:45 AM  KOBL 217    Professor Information      Professor:  David Dobolyi, PhD  Email:  david.dobolyi@colorado.edu  Office:  KOBL 401F  Office Hours:  Tuesdays and Fridays 11am to 12pm via Zoom  (https://c\u201d",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.1"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 0.08,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "hybrid",
+      "id": "Q2",
+      "type": "text",
+      "question": "How much of the final grade is the final project worth?",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom syllabus-fall-2026.pdf, page 3: \u201con time to receive course credit: I will NOT accept late quiz submissions, but the quiz with the lowest  score will be dropped from your final grade.    Final Project (45%)    The team-based final project is designed to give you practical, hands-on experience in designing a  business solution using the tools and techniques you learn about during this course. The project will  begin with a proposal\u201d\n\nFrom syllabus-fall-2026.pdf, page 2: \u201csyllabus, course materials, slides, etc. there. In addition, I will use Canvas for course announcements as  needed (e.g., schedule updates/changes, class cancellations in the case of inclement weather, etc.).    Course Grading    Final grades will be determined as follows:    Item  Percentage  Assignments  20%  Quizzes  15%  Final Project  45%  Final Exam  15%  Attendance and Participation  5%    \u201d",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.3",
+        "syllabus-fall-2026.pdf, p.2"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 0.01,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "hybrid",
+      "id": "Q3",
+      "type": "text",
+      "question": "What is the penalty for turning in an assignment late?",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom syllabus-fall-2026.pdf, page 2: \u201cattempt) every assignment, since they make up a large portion of your class grade. Not submitting  assignments on time will result in a 10% grade penalty for every calendar day the assignment is late  (e.g., an assignment that would have received a grade of 80/100 if turned in on time would receive a  grade of 72/100 [.80 * .90 = .72] if turned in up to one day late or 64/100 [.80 * .80 = .64] if \u201d\n\nFrom syllabus-fall-2026.pdf, page 3: \u201ctwo days late [and so on]). Assignments may not be turned in more than five days late (e.g., so that we  may review in class and/or so that answer keys may be provided to other students in a timely fashion),  but the assignment with the lowest score will be dropped from your final grade.    Quizzes (15%)    Quizzes will be given during class for in-person students or made available on Canvas for o\u201d",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.2",
+        "syllabus-fall-2026.pdf, p.3"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 0.01,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "hybrid",
+      "id": "Q4",
+      "type": "text",
+      "question": "What is KV caching, and what is its tradeoff?",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom Week 2 - LLM Fundamentals.pptx, slide 11: \u201cKV Caching \u2022 A single LLM response can involve a sequence of many  inference passes (e.g., once per every output token in the  response) \u2022 By using a key-value (KV) cache, decoding can move  faster by avoiding the need to reprocess prior tokens when  generating new ones, reducing TTFT \u2022 The tradeoff of KV cache is increased memory demands\u201d\n\nFrom Week 2 - LLM Fundamentals.pptx, slide 12: \u201cPrompt Caching \u2022 Prompt (or prefix) caching extends this performance boost  by allowing KV cache to be reused across requests \u2022 For example, consider a long agentic session involving a ten  messages with 100K tokens in use. The user is about to  send their eleventh message of 1K tokens: \u2022 Without prefix caching, the model must prefill the full 101K tokens  before beginning generation \u2022 With prefix\u201d",
+      "found": true,
+      "cited_sources": [
+        "Week 2 - LLM Fundamentals.pptx, p.11",
+        "Week 2 - LLM Fundamentals.pptx, p.12"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 0.02,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "hybrid",
+      "id": "Q5",
+      "type": "text",
+      "question": "In a hybrid RAG pipeline, what does reranking do?",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom Week 5 - Context Engineering and RAG.pptx, slide 18: \u201cQuestion Keyword Search Embedding Model Vector Search Candidate Chunks Reranker Ranked Chunks With Source Details Retrieval Reranking Hybrid RAG Pipeline with Reranking \u2022 RAG uses information from prepared documents to help an LLM  answer the user\u2019s question \u2022 Retrieval finds relevant candidate chunks using both keyword search  and vector search in Hybrid RAG \u2022 Reranking compares these candidates \u201d\n\nFrom Week 6 - Multimodal Generative AI.pptx, slide 7: \u201cMultimodal != Generative \u2022 Generative models produce content, including transcriptions,  answers, or novel media \u2022 A model can be multimodal without being generative \u2022 Consider models we used for RAG: \u2022 Multimodal embedding and reranking models find relevant material  via scoring and matching \u2013 but they do not generate content \u2022 VLMs (e.g., Qwen3.6-35B-A3B) generate answers based on  retrieved vis\u201d",
+      "found": true,
+      "cited_sources": [
+        "Week 5 - Context Engineering and RAG.pptx, p.18",
+        "Week 6 - Multimodal Generative AI.pptx, p.7"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": false,
+      "seconds": 0.01,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "hybrid",
+      "id": "Q6",
+      "type": "visual",
+      "question": "Find the meme about Vibe Coding on \"Prod\" in the Week 2 slides. What do its image and text show?",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom syllabus-fall-2026.pdf, page 1: \u201cTeaching Assistant (TA) Information      TAs:  None    Course Description    In this course, students will learn how to leverage recent advancements in generative artificial  intelligence (GAI) to solve business problems. The course focuses on three key aspects of GAI for  business. First, students will learn how best to use open and closed large language models (LLMs) for  coding, including topic\u201d\n\nFrom syllabus-fall-2026.pdf, page 7: \u201cTENTATIVE COURSE SCHEDULE (SUBJECT TO CHANGE)  Date  Topic(s)  Key Deliverables  Thursday  Monday  Thursday  Monday  Week 1  Course Introduction  Software Installation    Aug 20  Aug 24  Week 2  LLM Fundamentals: Models, APIs, and Interfaces    Aug 27  Aug 31  Week 3  Prompt Engineering  AI Coding Agents and Vibe Coding    Sep 3  Sep 14  Week 4  Serving an Application  Debugging and GitHub  Assign\u201d",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.1",
+        "syllabus-fall-2026.pdf, p.7"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": false,
+      "auto_correct": false,
+      "seconds": 0.01,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "hybrid",
+      "id": "Q7",
+      "type": "visual",
+      "question": "Describe the diagram of the hybrid RAG pipeline with reranking from the Week 5 slides.",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom Week 5 - Context Engineering and RAG.pptx, slide 18: \u201cQuestion Keyword Search Embedding Model Vector Search Candidate Chunks Reranker Ranked Chunks With Source Details Retrieval Reranking Hybrid RAG Pipeline with Reranking \u2022 RAG uses information from prepared documents to help an LLM  answer the user\u2019s question \u2022 Retrieval finds relevant candidate chunks using both keyword search  and vector search in Hybrid RAG \u2022 Reranking compares these candidates \u201d",
+      "found": true,
+      "cited_sources": [
+        "Week 5 - Context Engineering and RAG.pptx, p.18"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 0.02,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "hybrid",
+      "id": "Q8",
+      "type": "unanswerable",
+      "question": "How much does a parking permit for the Koelbel building cost?",
+      "answer": "The course materials I have don't cover this, so I can't answer it without guessing.",
+      "found": false,
+      "cited_sources": [],
+      "expected_source_retrieved": null,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 0.01,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "embeddings_only",
+      "id": "Q1",
+      "type": "text",
+      "question": "When are the professor's office hours?",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom syllabus-fall-2026.pdf, page 1: \u201cMBAX 6418 \u2013 Fall 2026  Building Business Solutions  with Generative AI & LLMs    Course Meeting Information    Days  Time  Venue  Mondays  09:30 AM to 12:15 PM  WLAW 304  Thursdays  08:00 AM to 10:45 AM  KOBL 217    Professor Information      Professor:  David Dobolyi, PhD  Email:  david.dobolyi@colorado.edu  Office:  KOBL 401F  Office Hours:  Tuesdays and Fridays 11am to 12pm via Zoom  (https://c\u201d",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.1"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 0.01,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "embeddings_only",
+      "id": "Q2",
+      "type": "text",
+      "question": "How much of the final grade is the final project worth?",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom syllabus-fall-2026.pdf, page 3: \u201con time to receive course credit: I will NOT accept late quiz submissions, but the quiz with the lowest  score will be dropped from your final grade.    Final Project (45%)    The team-based final project is designed to give you practical, hands-on experience in designing a  business solution using the tools and techniques you learn about during this course. The project will  begin with a proposal\u201d\n\nFrom syllabus-fall-2026.pdf, page 2: \u201csyllabus, course materials, slides, etc. there. In addition, I will use Canvas for course announcements as  needed (e.g., schedule updates/changes, class cancellations in the case of inclement weather, etc.).    Course Grading    Final grades will be determined as follows:    Item  Percentage  Assignments  20%  Quizzes  15%  Final Project  45%  Final Exam  15%  Attendance and Participation  5%    \u201d",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.3",
+        "syllabus-fall-2026.pdf, p.2"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 0.01,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "embeddings_only",
+      "id": "Q3",
+      "type": "text",
+      "question": "What is the penalty for turning in an assignment late?",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom syllabus-fall-2026.pdf, page 2: \u201cattempt) every assignment, since they make up a large portion of your class grade. Not submitting  assignments on time will result in a 10% grade penalty for every calendar day the assignment is late  (e.g., an assignment that would have received a grade of 80/100 if turned in on time would receive a  grade of 72/100 [.80 * .90 = .72] if turned in up to one day late or 64/100 [.80 * .80 = .64] if \u201d\n\nFrom syllabus-fall-2026.pdf, page 3: \u201ctwo days late [and so on]). Assignments may not be turned in more than five days late (e.g., so that we  may review in class and/or so that answer keys may be provided to other students in a timely fashion),  but the assignment with the lowest score will be dropped from your final grade.    Quizzes (15%)    Quizzes will be given during class for in-person students or made available on Canvas for o\u201d",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.2",
+        "syllabus-fall-2026.pdf, p.3"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 0.01,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "embeddings_only",
+      "id": "Q4",
+      "type": "text",
+      "question": "What is KV caching, and what is its tradeoff?",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom Week 2 - LLM Fundamentals.pptx, slide 11: \u201cKV Caching \u2022 A single LLM response can involve a sequence of many  inference passes (e.g., once per every output token in the  response) \u2022 By using a key-value (KV) cache, decoding can move  faster by avoiding the need to reprocess prior tokens when  generating new ones, reducing TTFT \u2022 The tradeoff of KV cache is increased memory demands\u201d\n\nFrom Week 2 - LLM Fundamentals.pptx, slide 12: \u201cPrompt Caching \u2022 Prompt (or prefix) caching extends this performance boost  by allowing KV cache to be reused across requests \u2022 For example, consider a long agentic session involving a ten  messages with 100K tokens in use. The user is about to  send their eleventh message of 1K tokens: \u2022 Without prefix caching, the model must prefill the full 101K tokens  before beginning generation \u2022 With prefix\u201d",
+      "found": true,
+      "cited_sources": [
+        "Week 2 - LLM Fundamentals.pptx, p.11",
+        "Week 2 - LLM Fundamentals.pptx, p.12"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 0.01,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "embeddings_only",
+      "id": "Q5",
+      "type": "text",
+      "question": "In a hybrid RAG pipeline, what does reranking do?",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom Week 5 - Context Engineering and RAG.pptx, slide 18: \u201cQuestion Keyword Search Embedding Model Vector Search Candidate Chunks Reranker Ranked Chunks With Source Details Retrieval Reranking Hybrid RAG Pipeline with Reranking \u2022 RAG uses information from prepared documents to help an LLM  answer the user\u2019s question \u2022 Retrieval finds relevant candidate chunks using both keyword search  and vector search in Hybrid RAG \u2022 Reranking compares these candidates \u201d\n\nFrom Week 6 - Multimodal Generative AI.pptx, slide 7: \u201cMultimodal != Generative \u2022 Generative models produce content, including transcriptions,  answers, or novel media \u2022 A model can be multimodal without being generative \u2022 Consider models we used for RAG: \u2022 Multimodal embedding and reranking models find relevant material  via scoring and matching \u2013 but they do not generate content \u2022 VLMs (e.g., Qwen3.6-35B-A3B) generate answers based on  retrieved vis\u201d",
+      "found": true,
+      "cited_sources": [
+        "Week 5 - Context Engineering and RAG.pptx, p.18",
+        "Week 6 - Multimodal Generative AI.pptx, p.7"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": false,
+      "seconds": 0.01,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "embeddings_only",
+      "id": "Q6",
+      "type": "visual",
+      "question": "Find the meme about Vibe Coding on \"Prod\" in the Week 2 slides. What do its image and text show?",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom syllabus-fall-2026.pdf, page 7: \u201cTENTATIVE COURSE SCHEDULE (SUBJECT TO CHANGE)  Date  Topic(s)  Key Deliverables  Thursday  Monday  Thursday  Monday  Week 1  Course Introduction  Software Installation    Aug 20  Aug 24  Week 2  LLM Fundamentals: Models, APIs, and Interfaces    Aug 27  Aug 31  Week 3  Prompt Engineering  AI Coding Agents and Vibe Coding    Sep 3  Sep 14  Week 4  Serving an Application  Debugging and GitHub  Assign\u201d\n\nFrom syllabus-fall-2026.pdf, page 1: \u201cTeaching Assistant (TA) Information      TAs:  None    Course Description    In this course, students will learn how to leverage recent advancements in generative artificial  intelligence (GAI) to solve business problems. The course focuses on three key aspects of GAI for  business. First, students will learn how best to use open and closed large language models (LLMs) for  coding, including topic\u201d",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.7",
+        "syllabus-fall-2026.pdf, p.1"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": false,
+      "auto_correct": false,
+      "seconds": 0.01,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "embeddings_only",
+      "id": "Q7",
+      "type": "visual",
+      "question": "Describe the diagram of the hybrid RAG pipeline with reranking from the Week 5 slides.",
+      "answer": "Offline mode (no AI model connected): here are the most relevant passages.\n\nFrom Week 5 - Context Engineering and RAG.pptx, slide 18: \u201cQuestion Keyword Search Embedding Model Vector Search Candidate Chunks Reranker Ranked Chunks With Source Details Retrieval Reranking Hybrid RAG Pipeline with Reranking \u2022 RAG uses information from prepared documents to help an LLM  answer the user\u2019s question \u2022 Retrieval finds relevant candidate chunks using both keyword search  and vector search in Hybrid RAG \u2022 Reranking compares these candidates \u201d",
+      "found": true,
+      "cited_sources": [
+        "Week 5 - Context Engineering and RAG.pptx, p.18"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 0.01,
+      "model": "offline (no chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "embeddings_only",
+      "id": "Q8",
+      "type": "unanswerable",
+      "question": "How much does a parking permit for the Koelbel building cost?",
+      "answer": "The course materials I have don't cover this, so I can't answer it without guessing.",
+      "found": false,
+      "cited_sources": [],
+      "expected_source_retrieved": null,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 0.01,
+      "model": "offline (no chat model)",
+      "warnings": []
+    }
+  ]
+}

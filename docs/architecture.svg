@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="760" viewBox="0 0 1100 760" font-family="Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .box { fill: #ffffff; stroke: #64748b; stroke-width: 1.4; rx: 8; }
+      .local { fill: #eff6ff; stroke: #3b82f6; }
+      .store { fill: #f0fdf4; stroke: #16a34a; }
+      .service { fill: #fff7ed; stroke: #ea580c; }
+      .title { font-weight: 700; font-size: 14px; fill: #0f172a; }
+      .text { fill: #334155; }
+      .small { fill: #64748b; font-size: 11.5px; }
+      .zone { fill: none; stroke-dasharray: 6 5; stroke-width: 1.4; rx: 14; }
+      .line { stroke: #475569; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #ea580c; stroke-width: 1.3; fill: none; stroke-dasharray: 4 4; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1100" height="760" fill="#ffffff"/>
+
+  <text x="30" y="36" font-size="20" font-weight="700" fill="#0f172a">Course Assistant: how it works</text>
+  <text x="30" y="58" class="small">Blue boxes run on your computer (Python + Gradio). Green boxes are stored in the data/ folder. Orange boxes are the class AI services at dobolyi.com.</text>
+
+  <!-- zones -->
+  <rect x="20" y="75" width="760" height="665" class="zone" stroke="#3b82f6"/>
+  <text x="34" y="96" class="small" fill="#3b82f6">Runs on your computer</text>
+  <rect x="800" y="75" width="280" height="665" class="zone" stroke="#ea580c"/>
+  <text x="814" y="96" class="small" fill="#ea580c">Class services (dobolyi.com, port 9001 and up)</text>
+
+  <!-- 1. Document preparation -->
+  <text x="40" y="126" class="title">1. Document preparation (Materials tab)</text>
+  <rect x="40" y="138" width="170" height="70" class="box local"/>
+  <text x="125" y="165" text-anchor="middle" class="title">Upload</text>
+  <text x="125" y="184" text-anchor="middle" class="small">PDF, PPTX, DOCX, TXT, MD</text>
+  <text x="125" y="198" text-anchor="middle" class="small">duplicates skipped (file hash)</text>
+
+  <rect x="240" y="138" width="170" height="70" class="box local"/>
+  <text x="325" y="160" text-anchor="middle" class="title">Convert + render</text>
+  <text x="325" y="178" text-anchor="middle" class="small">LibreOffice: Office files to PDF</text>
+  <text x="325" y="193" text-anchor="middle" class="small">PyMuPDF: text + page images</text>
+
+  <rect x="440" y="138" width="150" height="70" class="box local"/>
+  <text x="515" y="165" text-anchor="middle" class="title">Chunk text</text>
+  <text x="515" y="184" text-anchor="middle" class="small">langchain splitter</text>
+  <text x="515" y="198" text-anchor="middle" class="small">keeps doc + slide/page</text>
+
+  <rect x="620" y="138" width="140" height="70" class="box local"/>
+  <text x="690" y="165" text-anchor="middle" class="title">Embed</text>
+  <text x="690" y="184" text-anchor="middle" class="small">chunks: text model</text>
+  <text x="690" y="198" text-anchor="middle" class="small">pages: visual model</text>
+
+  <path d="M210,173 L238,173" class="line"/>
+  <path d="M410,173 L438,173" class="line"/>
+  <path d="M590,173 L618,173" class="line"/>
+
+  <!-- Stores -->
+  <text x="40" y="250" class="title">Stored indexes (kept separate; removing a document deletes its entries)</text>
+  <rect x="40" y="262" width="210" height="64" class="box store"/>
+  <text x="145" y="287" text-anchor="middle" class="title">Keyword index</text>
+  <text x="145" y="306" text-anchor="middle" class="small">bm25s over text chunks</text>
+  <rect x="285" y="262" width="210" height="64" class="box store"/>
+  <text x="390" y="287" text-anchor="middle" class="title">Text vector index</text>
+  <text x="390" y="306" text-anchor="middle" class="small">chromadb "text_chunks"</text>
+  <rect x="530" y="262" width="230" height="64" class="box store"/>
+  <text x="645" y="287" text-anchor="middle" class="title">Visual vector index</text>
+  <text x="645" y="306" text-anchor="middle" class="small">chromadb "page_images" + PNGs</text>
+
+  <path d="M515,208 L145,260" class="line"/>
+  <path d="M670,208 L400,260" class="line"/>
+  <path d="M700,208 L660,260" class="line"/>
+
+  <!-- 2. Retrieval -->
+  <text x="40" y="372" class="title">2. Retrieval (Ask and Quiz tabs)</text>
+  <rect x="40" y="384" width="160" height="62" class="box local"/>
+  <text x="120" y="410" text-anchor="middle" class="title">Question</text>
+  <text x="120" y="428" text-anchor="middle" class="small">optional document filter</text>
+
+  <rect x="230" y="384" width="250" height="62" class="box local"/>
+  <text x="355" y="408" text-anchor="middle" class="title">Search all three indexes</text>
+  <text x="355" y="427" text-anchor="middle" class="small">keyword + text meaning + image meaning</text>
+
+  <rect x="510" y="384" width="250" height="62" class="box local"/>
+  <text x="635" y="408" text-anchor="middle" class="title">Fuse + rerank</text>
+  <text x="635" y="427" text-anchor="middle" class="small">reciprocal rank fusion, then reranker</text>
+
+  <path d="M200,415 L228,415" class="line"/>
+  <path d="M480,415 L508,415" class="line"/>
+  <path d="M145,326 L300,382" class="line"/>
+  <path d="M390,326 L360,382" class="line"/>
+  <path d="M645,326 L420,382" class="line"/>
+
+  <!-- 3. Answer generation -->
+  <text x="40" y="492" class="title">3. Answer generation and checks</text>
+  <rect x="40" y="504" width="330" height="82" class="box local"/>
+  <text x="205" y="528" text-anchor="middle" class="title">Best evidence to the model</text>
+  <text x="205" y="547" text-anchor="middle" class="small">top text chunks + top slide images,</text>
+  <text x="205" y="562" text-anchor="middle" class="small">question, and answering rules (cite or say "not covered")</text>
+
+  <rect x="400" y="504" width="360" height="82" class="box local"/>
+  <text x="580" y="528" text-anchor="middle" class="title">Validate the structured reply</text>
+  <text x="580" y="547" text-anchor="middle" class="small">JSON with separate "answer" and "sources" fields;</text>
+  <text x="580" y="562" text-anchor="middle" class="small">drop invented citations; check quotes match sources;</text>
+  <text x="580" y="577" text-anchor="middle" class="small">withhold answers nothing supports</text>
+
+  <path d="M635,446 L250,502" class="line"/>
+  <path d="M370,545 L398,545" class="line"/>
+
+  <rect x="40" y="620" width="720" height="94" class="box local"/>
+  <text x="400" y="646" text-anchor="middle" class="title">Gradio interface</text>
+  <text x="400" y="666" text-anchor="middle" class="text">Answer + cited document and slide/page + source excerpt + original slide image</text>
+  <text x="400" y="686" text-anchor="middle" class="text">Quiz: multiple choice, fixed answer key, solutions hidden until answered or requested, score + sourced explanation</text>
+  <text x="400" y="704" text-anchor="middle" class="small">Quizzes use the same retrieval and checks, with a quiz-writing prompt instead</text>
+  <path d="M580,586 L580,618" class="line"/>
+
+  <!-- services -->
+  <rect x="820" y="130" width="240" height="66" class="box service"/>
+  <text x="940" y="156" text-anchor="middle" class="title">Text embedding model</text>
+  <text x="940" y="175" text-anchor="middle" class="small">/v1/embeddings</text>
+
+  <rect x="820" y="216" width="240" height="66" class="box service"/>
+  <text x="940" y="242" text-anchor="middle" class="title">Visual embedding model</text>
+  <text x="940" y="261" text-anchor="middle" class="small">/v1/embeddings (image or text input)</text>
+
+  <rect x="820" y="302" width="240" height="66" class="box service"/>
+  <text x="940" y="328" text-anchor="middle" class="title">Document parser (optional)</text>
+  <text x="940" y="347" text-anchor="middle" class="small">reads text inside picture-only slides</text>
+
+  <rect x="820" y="388" width="240" height="66" class="box service"/>
+  <text x="940" y="414" text-anchor="middle" class="title">Multimodal reranker</text>
+  <text x="940" y="433" text-anchor="middle" class="small">/v1/rerank</text>
+
+  <rect x="820" y="504" width="240" height="82" class="box service"/>
+  <text x="940" y="530" text-anchor="middle" class="title">Vision chat model</text>
+  <text x="940" y="549" text-anchor="middle" class="small">Qwen3.6-35B-A3B, port 9001</text>
+  <text x="940" y="566" text-anchor="middle" class="small">/v1/chat/completions</text>
+
+  <path d="M760,165 L818,163" class="dash"/>
+  <path d="M760,190 L818,249" class="dash"/>
+  <path d="M400,208 L420,230 L790,230 L818,320" class="dash"/>
+  <path d="M760,420 L818,421" class="dash"/>
+  <path d="M760,545 L818,545" class="dash"/>
+
+  <text x="820" y="620" class="small">If a service isn't configured or is down,</text>
+  <text x="820" y="636" class="small">the app uses an offline stand-in and</text>
+  <text x="820" y="652" class="small">shows a warning instead of failing.</text>
+  <text x="820" y="676" class="small">Keys come from .env on the server only;</text>
+  <text x="820" y="692" class="small">they never reach the browser, logs or Git.</text>
+</svg>
