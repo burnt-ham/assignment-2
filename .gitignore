@@ -1,0 +1,12 @@
+# Local course files (download from Canvas; the Week 4 deck contains a key)
+materials/
+
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
