@@ -1,0 +1,58 @@
+[
+  {
+    "id": "Q1",
+    "type": "text",
+    "question": "When are the professor's office hours?",
+    "expected_sources": [{"document": "syllabus", "page": 1}],
+    "expected_keywords": ["tuesday", "friday"]
+  },
+  {
+    "id": "Q2",
+    "type": "text",
+    "question": "How much of the final grade is the final project worth?",
+    "expected_sources": [{"document": "syllabus", "page": 2}, {"document": "syllabus", "page": 3}],
+    "expected_keywords": ["45"]
+  },
+  {
+    "id": "Q3",
+    "type": "text",
+    "question": "What is the penalty for turning in an assignment late?",
+    "expected_sources": [{"document": "syllabus", "page": 2}, {"document": "syllabus", "page": 3}],
+    "expected_keywords": ["10%", "10 percent"]
+  },
+  {
+    "id": "Q4",
+    "type": "text",
+    "question": "What is KV caching, and what is its tradeoff?",
+    "expected_sources": [{"document": "Week 2", "page": 11}],
+    "expected_keywords": ["memory"]
+  },
+  {
+    "id": "Q5",
+    "type": "text",
+    "question": "In a hybrid RAG pipeline, what does reranking do?",
+    "expected_sources": [{"document": "Week 5", "page": 18}],
+    "expected_keywords": ["priorit", "original question"]
+  },
+  {
+    "id": "Q6",
+    "type": "visual",
+    "question": "Find the meme about Vibe Coding on \"Prod\" in the Week 2 slides. What do its image and text show?",
+    "expected_sources": [{"document": "Week 2", "page": 33}],
+    "expected_keywords": []
+  },
+  {
+    "id": "Q7",
+    "type": "visual",
+    "question": "Describe the diagram of the hybrid RAG pipeline with reranking from the Week 5 slides.",
+    "expected_sources": [{"document": "Week 5", "page": 18}],
+    "expected_keywords": []
+  },
+  {
+    "id": "Q8",
+    "type": "unanswerable",
+    "question": "How much does a parking permit for the Koelbel building cost?",
+    "expected_sources": [],
+    "expected_keywords": []
+  }
+]

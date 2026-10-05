@@ -7,3 +7,6 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+
+# App data (uploaded documents, page images, search indexes)
+data/
