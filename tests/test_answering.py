@@ -17,6 +17,23 @@ def test_extract_json_handles_code_fences_and_extra_words():
         extract_json("no json here")
 
 
+def test_extract_json_skips_reasoning_block():
+    reply = '<think>The answer needs {"evidence_id": ...} so I should cite E1.</think>\n{"answer": "x", "sources": []}'
+    assert extract_json(reply) == {"answer": "x", "sources": []}
+    # Some chat templates add the opening tag themselves, so only the closing tag appears
+    assert extract_json('Cite {E1}.</think>{"answer": "y", "sources": []}') == {"answer": "y", "sources": []}
+
+
+def test_extract_json_ignores_braces_before_the_object():
+    assert extract_json('Using {E1}: {"answer": "x", "sources": []} hope that helps {:}') == {"answer": "x", "sources": []}
+
+
+def test_sources_given_as_bare_ids_are_accepted():
+    parsed = AnswerModel.model_validate({"answer": "x", "sources": ["E1", {"evidence_id": "E2", "quote": "q"}]})
+    assert [s.evidence_id for s in parsed.sources] == ["E1", "E2"]
+    assert parsed.sources[0].quote == ""
+
+
 def test_quote_check():
     source = "Reranking compares candidate chunks to the original question and prioritizes them."
     assert quote_supported("compares candidate chunks to the original question", source)

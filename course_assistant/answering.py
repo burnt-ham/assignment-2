@@ -15,7 +15,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from .retrieval import Evidence, Retriever
 from .services import ChatModel, ServiceError, tokens
@@ -45,6 +45,14 @@ class AnswerModel(BaseModel):
     found: bool = True
     answer: str = Field(min_length=1)
     sources: list[SourceModel] = Field(default_factory=list)
+
+    @field_validator("sources", mode="before")
+    @classmethod
+    def _bare_ids(cls, value):
+        """Accept sources given as bare ids, e.g. ["E1"], as well as objects."""
+        if isinstance(value, list):
+            return [{"evidence_id": s} if isinstance(s, str) else s for s in value]
+        return value
 
 
 @dataclass
@@ -86,15 +94,24 @@ class AnswerResult:
 
 
 def extract_json(text: str) -> dict:
-    """Pull a JSON object out of a model reply, tolerating code fences or extra words."""
+    """Pull a JSON object out of a model reply, tolerating code fences, extra words
+    and a reasoning model's <think>...</think> block (which can contain braces)."""
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S)
+    if "</think>" in text:  # opening tag left out by the server's chat template
+        text = text.rsplit("</think>", 1)[1]
     text = text.strip()
     fenced = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     if fenced:
         text = fenced.group(1).strip()
-    start, end = text.find("{"), text.rfind("}")
-    if start == -1 or end <= start:
-        raise ValueError("no JSON object in reply")
-    return json.loads(text[start : end + 1])
+    decoder = json.JSONDecoder()
+    for match in re.finditer(r"\{", text):
+        try:
+            obj, _ = decoder.raw_decode(text, match.start())
+        except ValueError:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    raise ValueError("no JSON object in reply")
 
 
 def _normalize(text: str) -> str:
