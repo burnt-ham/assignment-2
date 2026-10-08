@@ -123,6 +123,25 @@ def test_switch_clears_ask_and_quiz_selection_for_shared_doc_id(make_assistant, 
         assert result[callback["outputs"].index(dropdown_id)]["value"] is None
 
 
+def test_switch_clears_selected_upload_and_material_status(make_assistant):
+    assistant = make_assistant()
+    assistant.create_study_space("Finance Final")
+    app = build_app(assistant)
+    components = {c["id"]: c for c in app.config["components"]}
+    selector = next(i for i, c in components.items() if c["props"].get("label") == "Study Space")
+    uploader = next(i for i, c in components.items() if c["props"].get("label") == "Add course files")
+    add_event = next(d for d in app.config["dependencies"]
+                     if any(components[t[0]]["props"].get("value") == "Add to library"
+                            for t in d["targets"] if t[0] in components))
+    status = add_event["outputs"][0]
+    callback = next(d for d in app.config["dependencies"] if (selector, "input") in d["targets"])
+    assert uploader in callback["outputs"]
+    assert status in callback["outputs"]
+    result = app.fns[callback["id"]].fn("default")
+    assert result[callback["outputs"].index(uploader)] is None
+    assert result[callback["outputs"].index(status)] == ""
+
+
 def test_failed_delete_does_not_switch_active_space(make_assistant, monkeypatch):
     assistant = make_assistant()
     active = assistant.create_study_space("Finance Final")
