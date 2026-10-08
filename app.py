@@ -48,13 +48,14 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
             rows.append([d.name, d.file_type.upper(), f"{len(d.pages)} {d.page_label}s", len(d.chunks)])
         return rows or [["(no documents yet)", "", "", ""]]
 
-    def refreshed_lists():
+    def refreshed_lists(clear_selections=False):
         choices = doc_choices()
+        selected = {"value": None} if clear_selections else {}
         return (
             doc_table(),
             gr.update(choices=choices, value=None),
-            gr.update(choices=choices),
-            gr.update(choices=choices),
+            gr.update(choices=choices, **selected),
+            gr.update(choices=choices, **selected),
         )
 
     def space_choices():
@@ -68,10 +69,10 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
         """Discard all results and selections from the previously active space."""
         return (
             gr.update(choices=space_choices(), value=assistant.study_spaces.active_id),
-            heading or f"Active: **{html.escape(assistant.study_spaces.active.name)}**",
+            f"<span>{html.escape(heading)}</span>" if heading else f"Active: <strong>{html.escape(assistant.study_spaces.active.name)}</strong>",
             gr.update(choices=deletable_choices(), value=None),
             False,  # never carry a destructive confirmation into another space
-            *refreshed_lists(),
+            *refreshed_lists(clear_selections=True),
             "", "", [], "", None, {"answers": {}, "revealed": []}, "",
         )
 
@@ -198,7 +199,7 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
         with gr.Accordion("Study Spaces", open=True):
             gr.Markdown("Each Study Space has separate documents, slide images and search indexes. This local selector is not a login or security boundary.")
             space_select = gr.Dropdown(choices=space_choices(), value=assistant.study_spaces.active_id, label="Study Space")
-            space_status = gr.Markdown()
+            space_status = gr.HTML()
             with gr.Row():
                 new_space = gr.Textbox(label="New Study Space", placeholder="e.g. Finance Final")
                 create_button = gr.Button("Create", scale=0)

@@ -57,6 +57,19 @@ def test_interface_exposes_study_space_controls(make_assistant):
     assert {"Study Space", "New Study Space", "Rename Study Space", "Delete Study Space"} <= labels
 
 
+def test_study_space_name_cannot_render_markdown_image(make_assistant):
+    assistant = make_assistant()
+    space = assistant.create_study_space("![qa](https://example.com/pixel)")
+    app = build_app(assistant)
+    components = {c["id"]: c for c in app.config["components"]}
+    selector = next(i for i, c in components.items() if c["props"].get("label") == "Study Space")
+    callback = next(d for d in app.config["dependencies"] if (selector, "input") in d["targets"])
+    status_id = callback["outputs"][1]
+    assert components[status_id]["type"] == "html"
+    result = app.fns[callback["id"]].fn(space.space_id)
+    assert "![qa](https://example.com/pixel)" in result[1]
+
+
 def test_every_material_and_question_action_binds_selected_space(make_assistant):
     app = build_app(make_assistant())
     components = {c["id"]: c for c in app.config["components"]}
@@ -92,6 +105,22 @@ def test_switch_resets_delete_confirmation(make_assistant):
     assert confirm_id in callback["outputs"]
     result = app.fns[callback["id"]].fn("default")
     assert result[callback["outputs"].index(confirm_id)] is False
+
+
+def test_switch_clears_ask_and_quiz_selection_for_shared_doc_id(make_assistant, sample_md):
+    assistant = make_assistant()
+    original = assistant.library.add_file(sample_md).document
+    assistant.create_study_space("Finance Final")
+    duplicate = assistant.library.add_file(sample_md).document
+    assert original.doc_id == duplicate.doc_id
+    app = build_app(assistant)
+    components = {c["id"]: c for c in app.config["components"]}
+    selector = next(i for i, c in components.items() if c["props"].get("label") == "Study Space")
+    callback = next(d for d in app.config["dependencies"] if (selector, "input") in d["targets"])
+    result = app.fns[callback["id"]].fn("default")
+    for label in ("Search in (leave empty to search everything)", "Quiz me on"):
+        dropdown_id = next(i for i, c in components.items() if c["props"].get("label") == label)
+        assert result[callback["outputs"].index(dropdown_id)]["value"] is None
 
 
 def test_failed_delete_does_not_switch_active_space(make_assistant, monkeypatch):
