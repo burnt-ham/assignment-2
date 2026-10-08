@@ -144,6 +144,10 @@ class Library:
             self.reindex()
         self._rebuild_keyword_index()
 
+    def close(self) -> None:
+        """Release Chroma files before a Study Space is removed on Windows."""
+        self._client.close()
+
     # -- persistence ---------------------------------------------------------
 
     def _embedder_names(self) -> dict[str, str]:
