@@ -17,6 +17,7 @@ from course_assistant.config import redact
 from course_assistant.ingest import SUPPORTED_DESCRIPTION, SUPPORTED_TYPES, IngestError
 from course_assistant.quiz import LETTERS, MAX_QUESTIONS, QuizError, grade
 from course_assistant.services import ServiceError
+from course_assistant.study_spaces import StudySpaceError
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("course_assistant.app")
@@ -31,7 +32,7 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
     secrets = assistant.settings.secrets()
 
     def safe_error(exc: Exception) -> str:
-        if isinstance(exc, (IngestError, ServiceError, QuizError)):
+        if isinstance(exc, (IngestError, ServiceError, QuizError, StudySpaceError)):
             return redact(str(exc), secrets)
         log.error("Unexpected error: %s", redact(repr(exc), secrets))
         return "Something went wrong. Please try again, and report it if it keeps happening."
@@ -56,34 +57,96 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
             gr.update(choices=choices),
         )
 
+    def space_choices():
+        return [(space.name, space.space_id) for space in assistant.study_spaces.list()]
+
+    def deletable_choices():
+        return [(name, space_id) for name, space_id in space_choices()
+                if space_id != assistant.study_spaces.active_id]
+
+    def refresh_space(heading=""):
+        """Discard all results and selections from the previously active space."""
+        return (
+            gr.update(choices=space_choices(), value=assistant.study_spaces.active_id),
+            heading or f"Active: **{html.escape(assistant.study_spaces.active.name)}**",
+            gr.update(choices=deletable_choices(), value=None),
+            False,  # never carry a destructive confirmation into another space
+            *refreshed_lists(),
+            "", "", [], "", None, {"answers": {}, "revealed": []}, "",
+        )
+
+    def select_space(space_id):
+        try:
+            assistant.switch_study_space(space_id)
+            return refresh_space()
+        except Exception as exc:
+            return refresh_space(f"❌ {safe_error(exc)}")
+
+    def create_space(name, space_id):
+        try:
+            with assistant.operation(space_id):
+                assistant.create_study_space(name or "")
+            return refresh_space()
+        except Exception as exc:
+            return refresh_space(f"❌ {safe_error(exc)}")
+
+    def rename_space(name, space_id):
+        try:
+            with assistant.operation(space_id):
+                assistant.rename_study_space(space_id, name or "")
+            return refresh_space()
+        except Exception as exc:
+            return refresh_space(f"❌ {safe_error(exc)}")
+
+    def delete_space(confirmed, target_id, space_id):
+        if not confirmed:
+            return refresh_space("Check the confirmation box before deleting a Study Space.")
+        try:
+            with assistant.operation(space_id):
+                if not target_id:
+                    raise StudySpaceError("Select a Study Space to delete first.")
+                assistant.delete_study_space(target_id)
+            return refresh_space("Study Space and its stored documents deleted.")
+        except Exception as exc:
+            return refresh_space(f"❌ {safe_error(exc)}")
+
     # -- materials -----------------------------------------------------------
 
-    def add_files(files):
-        if not files:
-            return ("Choose one or more files first.", *refreshed_lists())
-        messages = []
-        for file in files:
-            path = Path(file if isinstance(file, str) else file.name)
-            name = path.name
-            try:
-                result = assistant.library.add_file(path, display_name=name)
-                messages.append(("✅ " if result.added else "ℹ️ ") + result.message)
-            except Exception as exc:  # one bad file shouldn't stop the others
-                messages.append(f"❌ {name}: {safe_error(exc)}")
-        return ("\n\n".join(messages), *refreshed_lists())
+    def add_files(files, space_id):
+        try:
+            with assistant.operation(space_id):
+                if not files:
+                    return ("Choose one or more files first.", *refreshed_lists())
+                messages = []
+                for file in files:
+                    path = Path(file if isinstance(file, str) else file.name)
+                    name = path.name
+                    try:
+                        result = assistant.library.add_file(path, display_name=name)
+                        messages.append(("✅ " if result.added else "ℹ️ ") + result.message)
+                    except Exception as exc:  # one bad file shouldn't stop the others
+                        messages.append(f"❌ {name}: {safe_error(exc)}")
+                return ("\n\n".join(messages), *refreshed_lists())
+        except StudySpaceError as exc:
+            return (f"❌ {safe_error(exc)}", *refreshed_lists())
 
-    def remove_doc(doc_id):
-        if not doc_id:
-            return ("Choose a document to remove.", *refreshed_lists())
-        return (assistant.library.remove(doc_id), *refreshed_lists())
+    def remove_doc(doc_id, space_id):
+        try:
+            with assistant.operation(space_id):
+                if not doc_id:
+                    return ("Choose a document to remove.", *refreshed_lists())
+                return (assistant.library.remove(doc_id), *refreshed_lists())
+        except StudySpaceError as exc:
+            return (f"❌ {safe_error(exc)}", *refreshed_lists())
 
     # -- asking --------------------------------------------------------------
 
-    def ask(question, doc_ids):
+    def ask(question, doc_ids, space_id):
         if not question or not question.strip():
             return "Type a question first.", "", [], ""
         try:
-            result = assistant.answerer.ask(question, doc_ids or None)
+            with assistant.operation(space_id):
+                result = assistant.answerer.ask(question, doc_ids or None)
         except Exception as exc:
             return f"❌ {safe_error(exc)}", "", [], ""
 
@@ -119,9 +182,10 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
 
     # -- quizzes -------------------------------------------------------------
 
-    def make_quiz(doc_ids, topic, count):
+    def make_quiz(doc_ids, topic, count, space_id):
         try:
-            quiz = assistant.quiz_maker.make_quiz(doc_ids or [], topic or "", int(count))
+            with assistant.operation(space_id):
+                quiz = assistant.quiz_maker.make_quiz(doc_ids or [], topic or "", int(count))
         except Exception as exc:
             return None, {"answers": {}, "revealed": []}, f"❌ {safe_error(exc)}"
         notes = "".join(f"\n> ℹ️ {html.escape(n)}" for n in quiz.notes)
@@ -130,6 +194,22 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
 
     with gr.Blocks(title="Course Assistant") as app:
         gr.Markdown("# Course Assistant\nAsk questions about your course materials, see the exact slides behind each answer, and take practice quizzes.")
+
+        with gr.Accordion("Study Spaces", open=True):
+            gr.Markdown("Each Study Space has separate documents, slide images and search indexes. This local selector is not a login or security boundary.")
+            space_select = gr.Dropdown(choices=space_choices(), value=assistant.study_spaces.active_id, label="Study Space")
+            space_status = gr.Markdown()
+            with gr.Row():
+                new_space = gr.Textbox(label="New Study Space", placeholder="e.g. Finance Final")
+                create_button = gr.Button("Create", scale=0)
+            with gr.Row():
+                rename_input = gr.Textbox(label="Rename Study Space")
+                rename_button = gr.Button("Rename", scale=0)
+            with gr.Accordion("Delete a Study Space", open=False):
+                gr.Markdown("Switch to another space first, then select the space to remove. Deletion permanently removes its documents, images and indexes.")
+                delete_target = gr.Dropdown(choices=deletable_choices(), label="Study Space to delete")
+                delete_confirm = gr.Checkbox(label="Delete Study Space")
+                delete_button = gr.Button("Delete permanently", variant="stop")
 
         with gr.Tab("Materials"):
             gr.Markdown(f"**Accepted files:** {SUPPORTED_DESCRIPTION} Uploading the same file twice won't duplicate it.")
@@ -217,12 +297,18 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
                                 gr.Image(value=source.image_path, label=source.citation, show_label=True, height=320, elem_classes="quiz-source", interactive=False)
 
         lists = [docs, remove_choice, ask_docs, quiz_docs]
-        add_button.click(add_files, inputs=uploader, outputs=[add_status, *lists])
-        remove_button.click(remove_doc, inputs=remove_choice, outputs=[add_status, *lists])
-        ask_button.click(ask, inputs=[question, ask_docs], outputs=[answer, sources, gallery, evidence])
-        question.submit(ask, inputs=[question, ask_docs], outputs=[answer, sources, gallery, evidence])
-        quiz_button.click(make_quiz, inputs=[quiz_docs, topic, count], outputs=[quiz_state, progress, quiz_header])
+        space_outputs = [space_select, space_status, delete_target, delete_confirm, *lists, answer, sources, gallery, evidence, quiz_state, progress, quiz_header]
+        space_select.input(select_space, inputs=space_select, outputs=space_outputs, concurrency_id="study-spaces", concurrency_limit=1)
+        create_button.click(create_space, inputs=[new_space, space_select], outputs=space_outputs, concurrency_id="study-spaces", concurrency_limit=1)
+        rename_button.click(rename_space, inputs=[rename_input, space_select], outputs=space_outputs, concurrency_id="study-spaces", concurrency_limit=1)
+        delete_button.click(delete_space, inputs=[delete_confirm, delete_target, space_select], outputs=space_outputs, concurrency_id="study-spaces", concurrency_limit=1)
+        add_button.click(add_files, inputs=[uploader, space_select], outputs=[add_status, *lists], concurrency_id="study-spaces", concurrency_limit=1)
+        remove_button.click(remove_doc, inputs=[remove_choice, space_select], outputs=[add_status, *lists], concurrency_id="study-spaces", concurrency_limit=1)
+        ask_button.click(ask, inputs=[question, ask_docs, space_select], outputs=[answer, sources, gallery, evidence], concurrency_id="study-spaces", concurrency_limit=1)
+        question.submit(ask, inputs=[question, ask_docs, space_select], outputs=[answer, sources, gallery, evidence], concurrency_id="study-spaces", concurrency_limit=1)
+        quiz_button.click(make_quiz, inputs=[quiz_docs, topic, count, space_select], outputs=[quiz_state, progress, quiz_header], concurrency_id="study-spaces", concurrency_limit=1)
         app.load(refreshed_lists, outputs=lists)
+        app.load(lambda: gr.update(choices=space_choices(), value=assistant.study_spaces.active_id), outputs=space_select)
     return app
 
 

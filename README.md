@@ -62,6 +62,10 @@ Open http://127.0.0.1:7860 in your browser. To stop it, press Ctrl+C in the term
 
 ## Using the app
 
+**Study Spaces:** use the selector above the tabs to create, switch, rename or delete a study context (for example, MBAX 6418 and Finance Final). Each space has its own document library, rendered slide images, keyword index and text/visual vector indexes. Uploading the same file to two different spaces is allowed; duplicates are checked within one space. Switching spaces clears the current answers and quiz from the page, and Ask and Quiz use only the active space's documents. To delete a space, switch to a different one and select the inactive space in the deletion control. Deletion permanently removes its stored documents and indexes; the last space cannot be deleted. This is a single-user, app-wide selector, **not** separate accounts, access control, or a security boundary. Avoid running multiple users in the same app process, since changing the active space changes it for everyone.
+
+**Existing installations:** on first launch, the old `data/library.json`, `data/docs/` and `data/chroma/` are copied into a fresh default **My Study Space**, including updated slide-image paths. The originals are kept in place as a recovery copy; do not delete them until you have checked the migrated library and backups yourself. Stop the old app before upgrading so its index files are not being written during copying. If `data/profiles/default/` exists but `data/profiles.json` does not (for example, after an interrupted migration), startup stops without overwriting either copy. Inspect and back up both locations before removing or repairing the incomplete destination; do not remove the legacy originals as a workaround. Later uploads stay in the active space and do not reset other spaces. The registry is `data/profiles.json`; each space's files live under `data/profiles/{space-id}/`. Future quiz history can live in the same folder.
+
 **Materials tab:** choose one or more files and click **Add to library**. Large decks take a while; the 42-slide Week 2 deck took about 70 seconds to convert. Uploading a file that's already there does nothing, even under a different file name. To remove a document, pick it in **Remove a document** and click **Remove**. Its text, slide images and search entries are all deleted, so later answers can't use it.
 
 **Ask tab:** type a question and click **Ask**. You can limit the search to certain documents. The answer shows:
@@ -109,10 +113,11 @@ Speaker notes in PowerPoint files are not read. Repeated headers and footers (li
 python -m pytest
 ```
 
-47 automated tests run in about 15 seconds and need no internet or class services. They use fake AI services that return scripted replies.
+The automated suite needs no internet or class services. It uses fake AI services that return scripted replies. On Windows with Python 3.12 and no LibreOffice, 75 tests passed and two were skipped (PowerPoint conversion and a directory-symlink check that requires Windows privileges).
 
 - **Unit tests** (`tests/test_ingest.py`, `test_library.py`, `test_retrieval.py`, `test_answering.py`, `test_quiz.py`, `test_config.py`) check individual parts: reading PDF, Markdown and PowerPoint files, chunking with source details, duplicate detection, removal, rank fusion, JSON parsing, quote checks, dropping invented citations, quiz validation, scoring, the fixed answer key, and that keys never appear in error messages.
 - **End-to-end tests** (`tests/test_end_to_end.py`) run complete workflows: add files, repeat an upload, ask text and image questions, make and score a quiz, remove a document and confirm answers no longer use it, questions the materials can't answer, and the chat model and reranker both being down.
+- **Study Space tests** (`tests/test_study_spaces.py`) check isolated uploads/search across spaces, migration with page images, UI controls, deletion, renaming and restart persistence.
 
 The PowerPoint test is skipped automatically if LibreOffice isn't installed.
 
@@ -161,7 +166,7 @@ Other limitations:
 
 | Tested | How |
 |---|---|
-| All 47 automated tests pass | `python -m pytest`, Python 3.11, Linux |
+| 75 automated tests pass, 2 environment-dependent tests skipped | `python -m pytest`, Python 3.12, Windows, no LibreOffice or symlink privilege |
 | All five course decks and the syllabus convert and load | Loaded in the app; slide images compared with the originals by eye |
 | Add, repeat upload, remove, ask, quiz, check and show answer | Clicked through in a browser (Chromium) in offline mode |
 | Light and dark mode are readable | Screenshots of every tab in both modes |
@@ -173,7 +178,7 @@ Other limitations:
 | Any class service (answers, embeddings, reranking, parsing) | This workspace can't reach dobolyi.com |
 | Answer and quiz quality with the real chat model | Same |
 | The real design comparison | Same; needs the class services |
-| Setup on Windows and Mac | Built on Linux; a teammate should follow this README on a fresh clone and fix any missing steps |
+| Fresh-clone setup on Mac and Windows with LibreOffice | Study Spaces and automated tests were exercised on Windows without LibreOffice; a teammate should follow this README on a fresh clone with LibreOffice and fix any missing steps |
 
 ## Working on this as a team
 
