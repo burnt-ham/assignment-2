@@ -11,6 +11,7 @@ Supported formats:
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import shutil
 import subprocess
@@ -70,7 +71,6 @@ def convert_to_pdf(path: Path, out_dir: Path, soffice: str = "soffice", timeout:
     with tempfile.TemporaryDirectory() as profile:
         command = [
             soffice,
-            f"-env:UserInstallation=file://{profile}",
             "--headless",
             "--convert-to",
             "pdf",
@@ -79,7 +79,7 @@ def convert_to_pdf(path: Path, out_dir: Path, soffice: str = "soffice", timeout:
             str(path),
         ]
         try:
-            subprocess.run(command, capture_output=True, timeout=timeout, check=False)
+            subprocess.run(command, capture_output=True, timeout=timeout, check=False, shell=True)
         except subprocess.TimeoutExpired as exc:
             raise IngestError(f"Converting {path.name} took too long and was stopped.") from exc
     pdf = out_dir / (path.stem + ".pdf")
@@ -169,7 +169,27 @@ def read_text(path: Path) -> list[Page]:
     return pages
 
 
-def read_document(path: str | Path, work_dir: Path, soffice: str = "soffice") -> list[Page]:
+def _find_soffice() -> str:
+    """Find soffice executable, trying common Windows paths if not in PATH."""
+    import shutil
+    # On Windows, soffice.com is the headless entry point; .exe can hang
+    for candidate in [
+        "C:/Program Files/LibreOffice/program/soffice.com",
+        "C:/Program Files (x86)/LibreOffice/program/soffice.com",
+    ]:
+        if os.path.isfile(candidate):
+            return candidate
+    # Fall back to PATH lookup
+    for name in ("soffice.com", "soffice", "soffice.exe"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return "soffice"
+
+
+def read_document(path: str | Path, work_dir: Path, soffice: str | None = None) -> list[Page]:
+    if soffice is None:
+        soffice = _find_soffice()
     """Read any supported file into pages. Page images are written under `work_dir`."""
     path = Path(path)
     suffix = path.suffix.lower()
