@@ -69,8 +69,12 @@ def convert_to_pdf(path: Path, out_dir: Path, soffice: str = "soffice", timeout:
         )
     out_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as profile:
-        command = [
-            soffice,
+        windows = os.name == "nt"
+        command = [soffice]
+        if not windows:
+            # On Windows this flag stops the conversion working, so it's left out there
+            command.append(f"-env:UserInstallation=file://{profile}")
+        command += [
             "--headless",
             "--convert-to",
             "pdf",
@@ -79,7 +83,7 @@ def convert_to_pdf(path: Path, out_dir: Path, soffice: str = "soffice", timeout:
             str(path),
         ]
         try:
-            subprocess.run(command, capture_output=True, timeout=timeout, check=False, shell=True)
+            subprocess.run(command, capture_output=True, timeout=timeout, check=False, shell=windows)
         except subprocess.TimeoutExpired as exc:
             raise IngestError(f"Converting {path.name} took too long and was stopped.") from exc
     pdf = out_dir / (path.stem + ".pdf")
