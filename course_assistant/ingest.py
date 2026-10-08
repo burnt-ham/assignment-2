@@ -192,9 +192,10 @@ def _find_soffice() -> str:
 
 
 def read_document(path: str | Path, work_dir: Path, soffice: str | None = None) -> list[Page]:
-    if soffice is None:
-        soffice = _find_soffice()
     """Read any supported file into pages. Page images are written under `work_dir`."""
+    if soffice in (None, "soffice"):
+        # No custom SOFFICE_PATH: look in the usual install folders as well as PATH
+        soffice = _find_soffice()
     path = Path(path)
     suffix = path.suffix.lower()
     if suffix not in SUPPORTED_TYPES:
