@@ -15,7 +15,7 @@ import gradio as gr
 from course_assistant.assistant import CourseAssistant
 from course_assistant.config import redact
 from course_assistant.ingest import SUPPORTED_DESCRIPTION, SUPPORTED_TYPES, IngestError
-from course_assistant.quiz import LETTERS, MAX_QUESTIONS, QuizError, grade
+from course_assistant.quiz import MAX_QUESTIONS, Quiz, QuizError, QuizQuestion, grade
 from course_assistant.services import ServiceError
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -25,6 +25,69 @@ CSS = """
 .source-gallery img, .quiz-source img { background: #ffffff; border: 1px solid var(--border-color-primary); }
 .verified { color: var(--color-accent); font-weight: 600; }
 """
+
+
+def quiz_choice_labels(item: QuizQuestion) -> tuple[str, ...]:
+    """Use each answer verbatim; adding letters could alter scientific names."""
+    return item.options
+
+
+def quiz_question_heading(number: int, item: QuizQuestion) -> str:
+    """Display question and study tags as escaped HTML, not Markdown."""
+    lines = [f"<strong>{number}. {html.escape(item.question)}</strong>"]
+    if item.concept:
+        lines.append(f"<span>Concept: {html.escape(item.concept)}</span>")
+    if item.learning_target:
+        lines.append(f"<span>Learning target: {html.escape(item.learning_target)}</span>")
+    return "<div>" + "<br>".join(lines) + "</div>"
+
+
+def quiz_coverage_summary(quiz: Quiz) -> str:
+    """Show which concepts a generated quiz covers, grouping case variants."""
+    concepts: dict[str, list] = {}
+    for item in quiz.questions:
+        label = item.concept.strip() or "Uncategorized"
+        key = label.casefold()
+        if key not in concepts:
+            concepts[key] = [label, 0]
+        concepts[key][1] += 1
+    return "Concepts covered: " + ", ".join(
+        f"{html.escape(label)} ({count})" for label, count in concepts.values()
+    )
+
+
+def quiz_ready_header(quiz: Quiz) -> str:
+    count = len(quiz.questions)
+    noun = "question" if count == 1 else "questions"
+    documents = ", ".join(html.escape(name) for name in quiz.doc_names)
+    topic = f", topic: {html.escape(quiz.topic)}" if quiz.topic else ""
+    return f"Quiz ready: {count} {noun} from {documents}{topic}"
+
+
+def quiz_result_html(quiz: Quiz) -> str:
+    """Render escaped quiz metadata without interpreting Markdown in model text."""
+    notes = "".join(f"<p>ℹ️ {html.escape(note)}</p>" for note in quiz.notes)
+    return (
+        f"<div><p>{quiz_ready_header(quiz)}</p>"
+        f"<p>{quiz_coverage_summary(quiz)}</p>"
+        f"<p><small>Written by {html.escape(quiz.source)}</small></p>{notes}</div>"
+    )
+
+
+def quiz_feedback_html(item: QuizQuestion, selected_index: int | None) -> str:
+    """Render feedback and citations as escaped HTML rather than Markdown."""
+    correct_answer = html.escape(item.options[item.correct_index])
+    if selected_index is None:
+        verdict = f"The answer is <strong>{correct_answer}</strong>."
+    elif selected_index == item.correct_index:
+        verdict = "✅ Correct."
+    else:
+        verdict = f"❌ Not quite. The answer is <strong>{correct_answer}</strong>."
+    quote = f"<blockquote>{html.escape(item.quote)}</blockquote>" if item.quote else ""
+    return (
+        f"<div><p>{verdict} {html.escape(item.explanation)}</p>"
+        f"<p><strong>Source:</strong> {html.escape(item.evidence.citation)}</p>{quote}</div>"
+    )
 
 
 def build_app(assistant: CourseAssistant) -> gr.Blocks:
@@ -123,10 +186,8 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
         try:
             quiz = assistant.quiz_maker.make_quiz(doc_ids or [], topic or "", int(count))
         except Exception as exc:
-            return None, {"answers": {}, "revealed": []}, f"❌ {safe_error(exc)}"
-        notes = "".join(f"\n> ℹ️ {html.escape(n)}" for n in quiz.notes)
-        header = f"Quiz ready: {len(quiz.questions)} questions from {', '.join(quiz.doc_names)}" + (f", topic: {html.escape(quiz.topic)}" if quiz.topic else "")
-        return quiz, {"answers": {}, "revealed": []}, header + f"\n\n<sub>Written by {html.escape(quiz.source)}</sub>" + notes
+            return None, {"answers": {}, "revealed": []}, f"<p>❌ {html.escape(safe_error(exc))}</p>"
+        return quiz, {"answers": {}, "revealed": []}, quiz_result_html(quiz)
 
     with gr.Blocks(title="Course Assistant") as app:
         gr.Markdown("# Course Assistant\nAsk questions about your course materials, see the exact slides behind each answer, and take practice quizzes.")
@@ -162,7 +223,7 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
                 topic = gr.Textbox(label="Topic (optional)", placeholder="e.g. RAG", scale=3)
                 count = gr.Slider(1, MAX_QUESTIONS, value=5, step=1, label="Questions", scale=1)
             quiz_button = gr.Button("Make quiz", variant="primary")
-            quiz_header = gr.Markdown()
+            quiz_header = gr.HTML()
             quiz_state = gr.State(None)
             progress = gr.State({"answers": {}, "revealed": []})
 
@@ -175,10 +236,10 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
                 result = grade(quiz, answers)
                 gr.Markdown(f"### Score: {result.correct} of {result.total} correct ({result.answered} answered)")
                 for index, item in enumerate(quiz.questions):
-                    labels = [f"{LETTERS[i]}. {option}" for i, option in enumerate(item.options)]
+                    labels = quiz_choice_labels(item)
                     done = index in answers or index in revealed
                     with gr.Group():
-                        gr.Markdown(f"**{index + 1}. {html.escape(item.question)}**")
+                        gr.HTML(quiz_question_heading(index + 1, item))
                         choice = gr.Radio(
                             choices=labels,
                             value=labels[answers[index]] if index in answers else None,
@@ -204,15 +265,8 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
                             check.click(on_check, inputs=[choice, progress], outputs=progress)
                             show.click(on_show, inputs=[progress], outputs=progress)
                         else:
-                            if index in answers:
-                                verdict = "✅ Correct." if answers[index] == item.correct_index else f"❌ Not quite. The answer is **{item.correct_letter}**."
-                            else:
-                                verdict = f"The answer is **{item.correct_letter}**."
+                            gr.HTML(quiz_feedback_html(item, answers.get(index)))
                             source = item.evidence
-                            feedback = f"{verdict} {html.escape(item.explanation)}\n\n**Source:** {html.escape(source.citation)}"
-                            if item.quote:
-                                feedback += f"\n> {html.escape(item.quote)}"
-                            gr.Markdown(feedback)
                             if source.image_path:
                                 gr.Image(value=source.image_path, label=source.citation, show_label=True, height=320, elem_classes="quiz-source", interactive=False)
 

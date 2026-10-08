@@ -73,6 +73,12 @@ If nothing in the materials supports an answer, the app says so instead of guess
 
 **Quiz tab:** pick documents, optionally type a topic, choose how many questions, and click **Make quiz**. For each question, pick an answer and click **Check answer**, or click **Show answer** to see it without scoring. The score counts only checked answers. The answer key is fixed when the quiz is made, and the explanation shows the source excerpt and slide.
 
+### Quiz 2.0 creation work (in progress)
+
+Model-written questions now carry a reusable **concept** and a specific **learning target**, shown beside each question; the quiz header summarizes concept coverage. A topic filters retrieval, while an unfocused quiz draws evidence across selected documents and across each long document. Creation checks source IDs and text quotes, four nonblank choices distinct after case/whitespace normalization, course-section labels masquerading as concepts, and generic all/none options. Choices are displayed as written, so scientific names and programming syntax are not silently changed; near-duplicates with different punctuation or wording still need human review. Rejected or repeated questions trigger up to two bounded replacement batches rather than silently shrinking the quiz. If a replacement call fails, previously accepted questions remain; service error details are not shown to students. Offline fallback questions are simpler term-recall questions, explicitly labeled with source-derived tags.
+
+**Quality limit:** these deterministic checks do not prove that a paraphrased explanation is entailed by the source, that distractors are equally plausible, or that exactly one choice is semantically correct. The team must review real model output against its cited evidence before relying on it. Persistent question banks, attempts, study statuses, adaptive review and Study Space-scoped history are later Quiz 2.0 work, not part of this creation slice.
+
 ### Supported files
 
 | Type | How it's read |
