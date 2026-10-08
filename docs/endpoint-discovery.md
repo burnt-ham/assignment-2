@@ -24,7 +24,7 @@ All services share the class API key, provided via `CLASS_API_KEY` environment v
 - **Response format:** Standard OpenAI chat completion with `id`, `object`, `created`, `model`, `choices`
 
 ### 2. Text Embeddings (9002)
-- **Base URL:** `http://dobolyi.com:9002`
+- **Base URL:** `http://dobolyi.com:9002/v1` (without `/v1` the service answers 404 Not Found)
 - **Model:** `nvidia/Nemotron-3-Embed-1B-BF16`
 - **API:** OpenAI-compatible `/embeddings`
 - **Auth:** Bearer token (the class key, from `CLASS_API_KEY` in your `.env`)
