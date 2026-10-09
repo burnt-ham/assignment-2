@@ -109,7 +109,7 @@ Speaker notes in PowerPoint files are not read. Repeated headers and footers (li
 python -m pytest
 ```
 
-47 automated tests run in about 15 seconds and need no internet or class services. They use fake AI services that return scripted replies.
+53 automated tests run in about 15 seconds and need no internet or class services. They use fake AI services that return scripted replies.
 
 - **Unit tests** (`tests/test_ingest.py`, `test_library.py`, `test_retrieval.py`, `test_answering.py`, `test_quiz.py`, `test_config.py`) check individual parts: reading PDF, Markdown and PowerPoint files, chunking with source details, duplicate detection, removal, rank fusion, JSON parsing, quote checks, dropping invented citations, quiz validation, scoring, the fixed answer key, and that keys never appear in error messages.
 - **End-to-end tests** (`tests/test_end_to_end.py`) run complete workflows: add files, repeat an upload, ask text and image questions, make and score a quiz, remove a document and confirm answers no longer use it, questions the materials can't answer, and the chat model and reranker both being down.
@@ -131,27 +131,45 @@ The question set is in [eval/questions.json](eval/questions.json): five text que
 | Q7 | Describe the diagram of the hybrid RAG pipeline with reranking from the Week 5 slides. | visual | Week 5 slide 18 |
 | Q8 | How much does a parking permit for the Koelbel building cost? | not answerable | none |
 
-**Design comparison:** hybrid search (keyword + text + image) vs. embeddings only (text + image, no keyword search), on the same questions and files. To run it, start the app once, add all five decks and the syllabus PDF, stop it, then run:
+**Design comparison:** reranking on vs. off, with the same questions, the same files and hybrid search in both settings. The script can also compare hybrid search (keyword + text + image) with embeddings only. To run a comparison, start the app once, add all five decks and the syllabus PDF, stop the app, then run:
 
 ```bash
+python scripts/evaluate.py --compare rerank   # reranking on vs. off (the comparison reported below)
 python scripts/evaluate.py                    # hybrid vs. embeddings only
-python scripts/evaluate.py --compare rerank   # optional: reranking on vs. off
 ```
 
 Results are saved in `eval/results/` as JSON, CSV and a Markdown table. The script checks each answer automatically: the expected source was cited, the answer contains an expected keyword, and an unanswerable question was declined. It also records the time taken. Then read every answer and fill in the **Correct (team check)** column yourselves, because the automatic check is only a first pass.
 
-### Results so far (offline stand-ins only)
+### Results: reranking on vs. off (class services)
 
-[eval/results/offline-standin-retrieval.md](eval/results/offline-standin-retrieval.md) is a dry run with no class services connected. It shows the pipeline works end to end, but it is **not** a real comparison: with stand-ins, both settings scored 6/8 on the automatic check, with the expected source cited for 7/8. Both settings missed the meme question (Q6), as expected, because the stand-in can't see images.
+We ran the comparison three times on 2026-10-08 with all five class services connected. The full tables and per-question notes are in [eval/results/live-rerank-summary.md](eval/results/live-rerank-summary.md). Junkyu graded every answer from run 3 by hand against its expected answer. The **correct** column asks whether the answer is right. The **sources** column asks whether every cited source supports it.
 
-**To do (team):** rerun with the class services connected, replace this section with the real table, and write the interpretation: which approach you'd keep and why, using correctness, source support and time.
+| Setting | Automatic check (runs 1-3) | Team check, run 3: correct | Team check, run 3: sources | Average time per question |
+|---|---|---|---|---|
+| Reranking on | 8/8, 8/8, 8/8 | 7/8 | 6/8 | 5.3 s |
+| Reranking off | 8/8, 8/8, 8/8 | 8/8 | 7/8 | 2.1 s |
+
+Where the team check differed from the automatic check:
+- **Extra, unrelated citations.** Reranking on: Q2 (syllabus p.7) and Q5 (Week 5 slide 14). Reranking off: Q7 (Week 5 slide 5). Each answer was right and also cited the correct source, so the automatic check, which only looks for the expected source, couldn't catch these.
+- **An invented image detail.** With reranking on, the Q6 meme answer said Boromir has "his arms outstretched". In the image he raises one hand with his fingers together.
+
+**Interpretation.** We would keep reranking **off** by default. On our questions it didn't make any answer more accurate or any citation better, and it made every answer slower, about 2.5 times on average. The time cost showed up in every question and every run. The one-question differences in correctness and sources could be chance, because answers vary from run to run and we graded only one run by hand. So we don't conclude that reranking hurts. We conclude that it didn't help here. Our questions each have one clearly matching slide, and the expected source was retrieved in every run without reranking. Reranking would matter more when many similar passages compete, such as broad questions that span several decks. That's why we kept it as a setting (`USE_RERANK=true` in `.env`) instead of removing it.
+
+**Limits of this comparison:** only 8 questions, mostly with a single clear source; hand grading of one run out of three; and answers that change between runs.
 
 ## Limitations and an investigated failure
+
+**Investigated: empty and off-topic answers from the class chat model.** In our first evaluation run with the class services, reranking on scored 7/8 and off scored 8/8. That looked like evidence against reranking, but the miss came from the answer step, not from retrieval:
+1. On Q3 the app said "Sorry, I couldn't produce a valid answer". Calling the chat model directly showed `finish_reason: length` with an empty reply. The model (Qwen3) had spent its whole token budget reasoning before writing its answer. Raising the limit from 2000 to 6000 tokens didn't help. Turning reasoning off (`enable_thinking: false`) did: the model answered in 26 tokens.
+2. With reasoning off, Q3 and Q4 were answered as if the question were "what is a prompt", taken from text in the evidence. This happened in 6 of 6 runs. The question appeared only once, at the top of a long message followed by the evidence and slide images. Repeating the question after the images fixed it in 6 of 6 runs.
+
+After both fixes, both settings scored 8/8 on the automatic check in three runs, and answers got faster. The lesson for the comparison: a score difference between two settings can come from a bug that has nothing to do with the setting being compared.
 
 **Investigated: the meme question without a document filter (offline).** Asking "Find the meme about Vibe Coding on 'Prod' in the Week 2 slides" across all documents returned syllabus page 7 first and the meme slide second. The syllabus schedule mentions "Week 2", "Vibe Coding" and other query words, so word-overlap scoring ranked it higher. The meme slide itself has only its title as text. Limiting the search to the Week 2 deck put slide 33 first (see the screenshot). With the class visual embedding model and reranker, the image itself should be matched, so the team should rerun this to confirm.
 
 Other limitations:
-- **Class service formats are unconfirmed.** The text embedding, visual embedding, reranker and parser clients follow the usual vLLM formats (`/v1/embeddings`, `/v1/rerank`, `/v1/chat/completions`). They were not tested against the real class services. If a service replies with an error, the message appears in the app and the stand-in takes over for that question.
+- **Image descriptions aren't checked automatically.** The chat model sometimes adds details that aren't in the picture (see Q6 above), and how much it describes varies from run to run. The slide image is shown next to the answer so you can compare.
+- **Service errors.** If a class service replies with an error, the message appears in the app and the stand-in takes over for that question.
 - **Source checking is by quote only.** The app confirms each quoted phrase appears in its source. It doesn't check that the source fully supports every sentence of the answer. For image evidence it can't check automatically, so the slide is shown for you to compare.
 - **Picture-only slides:** without the document parser service, a slide whose only text is in an image can be found only through image search.
 - **Speed:** converting large decks takes time (Week 2: about 70 s; Week 6, which has embedded videos, about 28 s). Videos and animations aren't captured, only a still image of each slide.
@@ -161,19 +179,20 @@ Other limitations:
 
 | Tested | How |
 |---|---|
-| All 47 automated tests pass | `python -m pytest`, Python 3.11, Linux |
+| All 53 automated tests pass | `python -m pytest`, Python 3.11, Linux. The PowerPoint conversion test needs a LibreOffice install that can open PPTX files |
 | All five course decks and the syllabus convert and load | Loaded in the app; slide images compared with the originals by eye |
 | Add, repeat upload, remove, ask, quiz, check and show answer | Clicked through in a browser (Chromium) in offline mode |
 | Light and dark mode are readable | Screenshots of every tab in both modes |
 | Keys stay out of errors | Unit test with a fake service that echoes the key back |
 | Evaluation script runs | Offline dry run, saved in `eval/results/` |
+| All five class services, the Ask tab and the evaluation questions with the real models | On Windows, 2026-10-08: all five services answered, the five decks and the syllabus loaded with LibreOffice, and the 8 questions plus 3 reranking on/off runs completed (see [Evaluation](#evaluation)) |
+| Answer quality with the real chat model | Run 3 answers graded by hand ([eval/results/live-rerank-summary.md](eval/results/live-rerank-summary.md)) |
 
 | Not tested yet | Why |
 |---|---|
-| Any class service (answers, embeddings, reranking, parsing) | This workspace can't reach dobolyi.com |
-| Answer and quiz quality with the real chat model | Same |
-| The real design comparison | Same; needs the class services |
-| Setup on Windows and Mac | Built on Linux; a teammate should follow this README on a fresh clone and fix any missing steps |
+| Quiz quality with the real chat model | Not run yet |
+| Hybrid vs. embeddings-only comparison with the class services | We compared reranking on vs. off instead |
+| Setup on Mac, and a fresh-clone setup by a teammate | A teammate should follow this README on a fresh clone and fix any missing steps |
 
 ## Working on this as a team
 
