@@ -12,7 +12,7 @@ def test_rank_fusion_rewards_items_found_by_several_searches():
 
 
 def test_hybrid_search_returns_text_and_images_with_ids(make_assistant, sample_pdf):
-    assistant = make_assistant()
+    assistant = make_assistant(use_rerank=True)
     assistant.library.add_file(sample_pdf)
     result = assistant.retriever.search("How does reranking prioritize chunks?")
     kinds = {e.kind for e in result.evidence}
@@ -32,7 +32,7 @@ def test_embeddings_only_mode_skips_keyword_search(make_assistant, sample_pdf, m
 
 
 def test_reranker_failure_falls_back_with_warning(make_assistant, sample_pdf):
-    assistant = make_assistant(reranker=FailingReranker())
+    assistant = make_assistant(reranker=FailingReranker(), use_rerank=True)
     assistant.library.add_file(sample_pdf)
     result = assistant.retriever.search("chunking metadata")
     assert result.evidence and not result.reranked
@@ -44,3 +44,23 @@ def test_rerank_can_be_turned_off(make_assistant, sample_pdf):
     assistant.library.add_file(sample_pdf)
     retriever = Retriever(assistant.library, OverlapReranker(), use_rerank=False)
     assert not retriever.search("chunking").reranked
+
+
+def test_rerank_off_by_default(make_assistant, sample_pdf):
+    # The live on-vs-off comparison found no retrieval benefit and ~2x
+    # latency, so the shipped default is off (USE_RERANK=false).
+    assistant = make_assistant()
+    assistant.library.add_file(sample_pdf)
+    assert not assistant.retriever.search("chunking").reranked
+
+
+def test_rerank_override_does_not_mutate_shared_state(make_assistant, sample_pdf):
+    # The Ask tab's checkbox must not change the default other features use
+    # (e.g. the Quiz tab's topic search). A per-call override wins for that
+    # search only; the stored default is untouched.
+    assistant = make_assistant()  # stored default: rerank off
+    assistant.library.add_file(sample_pdf)
+    on = assistant.retriever.search("chunking", use_rerank=True)
+    off = assistant.retriever.search("chunking")
+    assert on.reranked and not off.reranked
+    assert not assistant.retriever.use_rerank  # state unchanged
