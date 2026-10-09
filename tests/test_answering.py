@@ -125,3 +125,28 @@ def test_empty_model_replies_are_explained(make_assistant, sample_pdf):
     result = assistant.answerer.ask("What does chunking preserve?")
     assert not result.found and len(chat.calls) == 2
     assert any("empty reply" in w for w in result.warnings)
+
+
+def test_extract_json_prefers_the_final_object():
+    reply = 'Example: {"found": true, "answer": "Monday", "sources": ["E1"]} Correction: {"found": true, "answer": "Tuesday", "sources": ["E2"]}'
+    assert extract_json(reply)["answer"] == "Tuesday"
+    # Objects nested inside the answer object don't count as separate candidates
+    assert extract_json('{"answer": "x", "sources": [{"evidence_id": "E1", "quote": "q"}]}')["answer"] == "x"
+
+
+def test_extract_json_leaves_think_tags_inside_the_answer_alone():
+    reply = '{"found": true, "answer": "Qwen wraps reasoning in <think>...</think> tags.", "sources": []}'
+    assert extract_json(reply)["answer"] == "Qwen wraps reasoning in <think>...</think> tags."
+    lone_closing_tag = '{"found": true, "answer": "The tag </think> ends reasoning.", "sources": []}'
+    assert extract_json(lone_closing_tag)["answer"] == "The tag </think> ends reasoning."
+    with_reasoning = '<think>Plan {E1}</think>\n{"found": true, "answer": "Use <think> tags.", "sources": []}'
+    assert extract_json(with_reasoning)["answer"] == "Use <think> tags."
+
+
+def test_bare_id_text_citation_cannot_be_checked(make_assistant, sample_pdf):
+    chat = FakeChat([{"found": True, "answer": "It re-orders candidates.", "sources": ["E1"]}])
+    assistant = make_assistant(chat=chat)
+    assistant.library.add_file(sample_pdf)
+    result = assistant.answerer.ask("What does reranking do?")
+    assert result.answer == NOT_FOUND and not result.found
+    assert any("couldn't be checked" in s.note for s in result.sources)

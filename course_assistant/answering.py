@@ -49,7 +49,9 @@ class AnswerModel(BaseModel):
     @field_validator("sources", mode="before")
     @classmethod
     def _bare_ids(cls, value):
-        """Accept sources given as bare ids, e.g. ["E1"], as well as objects."""
+        """Accept sources given as bare ids, e.g. ["E1"], so one missing quote doesn't
+        discard the whole reply. A bare id has no quote, so it counts as support only
+        for image evidence; a text source without a quote can't be checked and fails."""
         if isinstance(value, list):
             return [{"evidence_id": s} if isinstance(s, str) else s for s in value]
         return value
@@ -93,24 +95,51 @@ class AnswerResult:
         }
 
 
-def extract_json(text: str) -> dict:
-    """Pull a JSON object out of a model reply, tolerating code fences, extra words
-    and a reasoning model's <think>...</think> block (which can contain braces)."""
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S)
-    if "</think>" in text:  # opening tag left out by the server's chat template
-        text = text.rsplit("</think>", 1)[1]
-    text = text.strip()
-    fenced = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
-    if fenced:
-        text = fenced.group(1).strip()
+_LEADING_REASONING = re.compile(r"\s*<think>.*?</think>", re.S)
+
+
+def _top_level_objects(text: str) -> list[dict]:
+    """Every JSON object in the text that isn't nested inside another one, in order."""
     decoder = json.JSONDecoder()
-    for match in re.finditer(r"\{", text):
+    found, pos = [], 0
+    while (start := text.find("{", pos)) != -1:
         try:
-            obj, _ = decoder.raw_decode(text, match.start())
+            obj, end = decoder.raw_decode(text, start)
         except ValueError:
+            pos = start + 1
             continue
         if isinstance(obj, dict):
-            return obj
+            found.append(obj)
+        pos = end
+    return found
+
+
+def extract_json(text: str) -> dict:
+    """Pull the model's JSON object out of its reply.
+
+    Tolerates code fences, extra words and a reasoning model's <think>...</think>
+    block. Only a reasoning block at the start of the reply is removed, so text
+    inside the answer is never rewritten. If the reply holds several objects
+    (for example an example followed by the real answer), the last one wins.
+    """
+    leading = _LEADING_REASONING.match(text)
+    if leading:
+        candidates = [text[leading.end():]]
+    elif "</think>" in text and "<think>" not in text:
+        # Some chat templates add the opening tag themselves, so the reply starts with
+        # reasoning and only "</think>" appears. A "</think>" inside an answer string
+        # is also possible, so fall back to the whole reply if nothing follows the tag.
+        candidates = [text.split("</think>", 1)[1], text]
+    else:
+        candidates = [text]
+    for candidate in candidates:
+        candidate = candidate.strip()
+        fenced = re.search(r"```(?:json)?\s*(.*?)```", candidate, re.S)
+        if fenced:
+            candidate = fenced.group(1).strip()
+        objects = _top_level_objects(candidate)
+        if objects:
+            return objects[-1]
     raise ValueError("no JSON object in reply")
 
 
@@ -153,7 +182,12 @@ def check_sources(parsed: AnswerModel, evidence: list[Evidence]) -> tuple[list[C
                 note = "Quote found in the slide's text."
         else:
             ok = quote_supported(source.quote, item.text)
-            note = "Quote found in the source." if ok else "Quote not found in the source text."
+            if ok:
+                note = "Quote found in the source."
+            elif not source.quote.strip():
+                note = "No quote was given, so this text source couldn't be checked."
+            else:
+                note = "Quote not found in the source text."
         checked.append(CheckedSource(item, source.quote, ok, note))
     return checked, problems
 

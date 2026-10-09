@@ -2,8 +2,8 @@
 
 A Python app that answers questions about the course materials and makes practice quizzes. It searches the slides by keyword, by meaning, and by what the slide images look like (hybrid RAG). It shows the actual slide behind every answer, and it says so when the materials don't cover a question.
 
-> **Status: first full version, not yet tested against the class AI services.**
-> The app was built and tested in a workspace that can't reach dobolyi.com. Everything below that says "offline" ran with built-in stand-ins instead of the class models. The team still needs to connect the class services, rerun the evaluation, and replace the screenshots and results. See [What was tested and what wasn't](#what-was-tested-and-what-wasnt).
+> **Status: partly tested against the class AI services.**
+> The first version was built and tested offline, with built-in stand-ins instead of the class models. Anything below marked "offline" still describes those runs. On 2026-10-08 and 2026-10-09 we connected all five class services on a Windows laptop. We then ran the evaluation questions, a reranking on/off comparison and a quiz check (see [Evaluation](#evaluation)). The other screenshots and sections still need to be redone with the class services. See [What was tested and what wasn't](#what-was-tested-and-what-wasnt).
 
 Other project docs: [PLAN.md](PLAN.md) (build plan and issues), [docs/assignment-summary.md](docs/assignment-summary.md), [docs/decisions.md](docs/decisions.md), [docs/course-materials.md](docs/course-materials.md).
 
@@ -109,7 +109,7 @@ Speaker notes in PowerPoint files are not read. Repeated headers and footers (li
 python -m pytest
 ```
 
-53 automated tests run in about 15 seconds and need no internet or class services. They use fake AI services that return scripted replies.
+56 automated tests run in about 15 seconds and need no internet or class services. They use fake AI services that return scripted replies.
 
 - **Unit tests** (`tests/test_ingest.py`, `test_library.py`, `test_retrieval.py`, `test_answering.py`, `test_quiz.py`, `test_config.py`) check individual parts: reading PDF, Markdown and PowerPoint files, chunking with source details, duplicate detection, removal, rank fusion, JSON parsing, quote checks, dropping invented citations, quiz validation, scoring, the fixed answer key, and that keys never appear in error messages.
 - **End-to-end tests** (`tests/test_end_to_end.py`) run complete workflows: add files, repeat an upload, ask text and image questions, make and score a quiz, remove a document and confirm answers no longer use it, questions the materials can't answer, and the chat model and reranker both being down.
@@ -144,7 +144,7 @@ Results are saved in `eval/results/` as JSON, CSV and a Markdown table. The scri
 
 We ran the comparison three times on 2026-10-08 with all five class services connected. The full tables and per-question notes are in [eval/results/live-rerank-summary.md](eval/results/live-rerank-summary.md). Junkyu graded every answer from run 3 by hand against its expected answer. The **correct** column asks whether the answer is right. The **sources** column asks whether every cited source supports it.
 
-| Setting | Automatic check (runs 1-3) | Team check, run 3: correct | Team check, run 3: sources | Average time per question |
+| Setting | Automatic check, runs 1-3 (keyword + expected page only) | Team check, run 3: correct | Team check, run 3: sources | Average time per question |
 |---|---|---|---|---|
 | Reranking on | 8/8, 8/8, 8/8 | 7/8 | 6/8 | 5.3 s |
 | Reranking off | 8/8, 8/8, 8/8 | 8/8 | 7/8 | 2.1 s |
@@ -155,7 +155,11 @@ Where the team check differed from the automatic check:
 
 **Interpretation.** We would keep reranking **off** by default. On our questions it didn't make any answer more accurate or any citation better, and it made every answer slower, about 2.5 times on average. The time cost showed up in every question and every run. The one-question differences in correctness and sources could be chance, because answers vary from run to run and we graded only one run by hand. So we don't conclude that reranking hurts. We conclude that it didn't help here. Our questions each have one clearly matching slide, and the expected source was retrieved in every run without reranking. Reranking would matter more when many similar passages compete, such as broad questions that span several decks. That's why we kept it as a setting (`USE_RERANK=true` in `.env`) instead of removing it.
 
-**Limits of this comparison:** only 8 questions, mostly with a single clear source; hand grading of one run out of three; and answers that change between runs.
+**Limits of this comparison:**
+- There are only 8 questions, and most have a single clear source.
+- The automatic check only looks for an expected keyword and an expected page among the citations. It doesn't show that every cited source supports the answer, so we graded by hand.
+- We graded only run 3 by hand. Runs 1 and 2 kept only their summary tables, not the answers.
+- Answers change from run to run.
 
 ## Limitations and an investigated failure
 
@@ -179,7 +183,7 @@ Other limitations:
 
 | Tested | How |
 |---|---|
-| All 53 automated tests pass | `python -m pytest`, Python 3.11, Linux. The PowerPoint conversion test needs a LibreOffice install that can open PPTX files |
+| All 56 automated tests pass | `python -m pytest`, Python 3.11, Linux. The PowerPoint conversion test needs a LibreOffice install that can open PPTX files |
 | All five course decks and the syllabus convert and load | Loaded in the app; slide images compared with the originals by eye |
 | Add, repeat upload, remove, ask, quiz, check and show answer | Clicked through in a browser (Chromium) in offline mode |
 | Light and dark mode are readable | Screenshots of every tab in both modes |
@@ -187,7 +191,7 @@ Other limitations:
 | Evaluation script runs | Offline dry run, saved in `eval/results/` |
 | All five class services, the Ask tab and the evaluation questions with the real models | On Windows, 2026-10-08: all five services answered, the five decks and the syllabus loaded with LibreOffice, and the 8 questions plus 3 reranking on/off runs completed (see [Evaluation](#evaluation)) |
 | Answer quality with the real chat model | Run 3 answers graded by hand ([eval/results/live-rerank-summary.md](eval/results/live-rerank-summary.md)) |
-| Quizzes with the real chat model | 3 quizzes (15 questions) checked against the slides and syllabus: every question answerable, every key correct, answer key fixed across regrading, solutions hidden until checked or shown ([eval/results/live-quiz-check.md](eval/results/live-quiz-check.md)) |
+| Quizzes with the real chat model (the current quiz code, before Quiz 2.0) | 3 quizzes (15 questions) checked by hand against the slides and syllabus. Every question was answerable and every key was correct. The answer key stayed fixed across regrading, and solutions stayed hidden until checked or shown ([eval/results/live-quiz-check.md](eval/results/live-quiz-check.md)) |
 
 | Not tested yet | Why |
 |---|---|
