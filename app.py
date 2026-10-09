@@ -79,9 +79,10 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
 
     # -- asking --------------------------------------------------------------
 
-    def ask(question, doc_ids):
+    def ask(question, doc_ids, rerank_on):
         if not question or not question.strip():
             return "Type a question first.", "", [], ""
+        assistant.retriever.use_rerank = bool(rerank_on)
         try:
             result = assistant.answerer.ask(question, doc_ids or None)
         except Exception as exc:
@@ -147,6 +148,12 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
             ask_docs = gr.Dropdown(choices=doc_choices(), multiselect=True, label="Search in (leave empty to search everything)")
             question = gr.Textbox(label="Question", placeholder="e.g. Find the meme about vibe coding on \"Prod\" and explain it", lines=2)
             ask_button = gr.Button("Ask", variant="primary")
+            rerank_on = gr.Checkbox(
+                value=assistant.settings.use_rerank,
+                label="Rerank results with the class multimodal reranker",
+                info=("Turn off to compare raw fused search order with reranked order "
+                      f"(currently {'on' if assistant.settings.use_rerank else 'off'} by default, USE_RERANK)."),
+            )
             answer = gr.Markdown()
             with gr.Row():
                 with gr.Column(scale=1):
@@ -219,8 +226,8 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
         lists = [docs, remove_choice, ask_docs, quiz_docs]
         add_button.click(add_files, inputs=uploader, outputs=[add_status, *lists])
         remove_button.click(remove_doc, inputs=remove_choice, outputs=[add_status, *lists])
-        ask_button.click(ask, inputs=[question, ask_docs], outputs=[answer, sources, gallery, evidence])
-        question.submit(ask, inputs=[question, ask_docs], outputs=[answer, sources, gallery, evidence])
+        ask_button.click(ask, inputs=[question, ask_docs, rerank_on], outputs=[answer, sources, gallery, evidence])
+        question.submit(ask, inputs=[question, ask_docs, rerank_on], outputs=[answer, sources, gallery, evidence])
         quiz_button.click(make_quiz, inputs=[quiz_docs, topic, count], outputs=[quiz_state, progress, quiz_header])
         app.load(refreshed_lists, outputs=lists)
     return app

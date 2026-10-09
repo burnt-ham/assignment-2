@@ -3,7 +3,7 @@
 A Python app that answers questions about the course materials and makes practice quizzes. It searches the slides by keyword, by meaning, and by what the slide images look like (hybrid RAG). It shows the actual slide behind every answer, and it says so when the materials don't cover a question.
 
 > **Status: first full version, not yet tested against the class AI services.**
-> The app was built and tested in a workspace that can't reach dobolyi.com. Everything below that says "offline" ran with built-in stand-ins instead of the class models. The team still needs to connect the class services, rerun the evaluation, and replace the screenshots and results. See [What was tested and what wasn't](#what-was-tested-and-what-wasnt).
+> The app was built and tested in a workspace that couldn't reach doboliy.com, so most checks below ran with built-in stand-ins instead of the class models. The class-service *wire formats* (embeddings and reranker) have since been confirmed from a machine with access — see [What was tested](#what-was-tested-and-what-wasnt). Still to do: rerun the evaluation with the real services connected, and replace the screenshots and results.
 
 Other project docs: [PLAN.md](PLAN.md) (build plan and issues), [docs/assignment-summary.md](docs/assignment-summary.md), [docs/decisions.md](docs/decisions.md), [docs/course-materials.md](docs/course-materials.md).
 
@@ -151,7 +151,12 @@ Results are saved in `eval/results/` as JSON, CSV and a Markdown table. The scri
 **Investigated: the meme question without a document filter (offline).** Asking "Find the meme about Vibe Coding on 'Prod' in the Week 2 slides" across all documents returned syllabus page 7 first and the meme slide second. The syllabus schedule mentions "Week 2", "Vibe Coding" and other query words, so word-overlap scoring ranked it higher. The meme slide itself has only its title as text. Limiting the search to the Week 2 deck put slide 33 first (see the screenshot). With the class visual embedding model and reranker, the image itself should be matched, so the team should rerun this to confirm.
 
 Other limitations:
-- **Class service formats are unconfirmed.** The text embedding, visual embedding, reranker and parser clients follow the usual vLLM formats (`/v1/embeddings`, `/v1/rerank`, `/v1/chat/completions`). They were not tested against the real class services. If a service replies with an error, the message appears in the app and the stand-in takes over for that question.
+- **Answer and quiz quality with the real chat model is still untested.** The
+  *wire formats* of the class services are now confirmed against the live
+  endpoints (see "What was tested"), but question quality with the real
+  chat model, and the document parser on port 9005, have not been exercised
+  yet. If a service replies with an error, the message appears in the app
+  and the stand-in takes over for that question.
 - **Source checking is by quote only.** The app confirms each quoted phrase appears in its source. It doesn't check that the source fully supports every sentence of the answer. For image evidence it can't check automatically, so the slide is shown for you to compare.
 - **Picture-only slides:** without the document parser service, a slide whose only text is in an image can be found only through image search.
 - **Speed:** converting large decks takes time (Week 2: about 70 s; Week 6, which has embedded videos, about 28 s). Videos and animations aren't captured, only a still image of each slide.
@@ -161,7 +166,8 @@ Other limitations:
 
 | Tested | How |
 |---|---|
-| All 47 automated tests pass | `python -m pytest`, Python 3.11, Linux |
+| All automated tests pass (offline) | `python -m pytest` (Python 3.11); integration tests that need the live services are skipped without them |
+| Class-service wire formats (issue #6) | The clients in `services.py` were run against the live endpoints: text embeddings (port 9002) return 2048-dim vectors; visual embeddings (port 9003, chat-style messages) return 2048-dim vectors in the same space — a text query "Vibe Coding on 'Prod'" scores **0.60** against the real Week 2 slide 33 meme image; the multimodal reranker (port 9004, separate text/image calls) scored the same meme image **0.749**, at or near the top for that query. See `tests/test_services_live.py`. |
 | All five course decks and the syllabus convert and load | Loaded in the app; slide images compared with the originals by eye |
 | Add, repeat upload, remove, ask, quiz, check and show answer | Clicked through in a browser (Chromium) in offline mode |
 | Light and dark mode are readable | Screenshots of every tab in both modes |
@@ -170,9 +176,9 @@ Other limitations:
 
 | Not tested yet | Why |
 |---|---|
-| Any class service (answers, embeddings, reranking, parsing) | This workspace can't reach dobolyi.com |
-| Answer and quiz quality with the real chat model | Same |
-| The real design comparison | Same; needs the class services |
+| Answer and quiz quality with the real chat model | The chat endpoint works (format-verified indirectly) but no eval has been rerun with it yet |
+| The document parser (port 9005) | Its request format is still unconfirmed |
+| The real design comparison (reranking on vs off) | Needs the real services everywhere, then `scripts/evaluate.py --compare rerank` |
 | Setup on Windows and Mac | Built on Linux; a teammate should follow this README on a fresh clone and fix any missing steps |
 
 ## Working on this as a team
