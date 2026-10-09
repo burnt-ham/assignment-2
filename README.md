@@ -3,7 +3,7 @@
 A Python app that answers questions about the course materials and makes practice quizzes. It searches the slides by keyword, by meaning, and by what the slide images look like (hybrid RAG). It shows the actual slide behind every answer, and it says so when the materials don't cover a question.
 
 > **Status: first full version, not yet tested against the class AI services.**
-> The app was built and tested in a workspace that couldn't reach doboliy.com, so most checks below ran with built-in stand-ins instead of the class models. The class-service *wire formats* (embeddings and reranker) have since been confirmed from a machine with access — see [What was tested](#what-was-tested-and-what-wasnt). Still to do: rerun the evaluation with the real services connected, and replace the screenshots and results.
+> The app was built and tested in a workspace that couldn't reach dobolyi.com, so most checks below ran with built-in stand-ins instead of the class models. The class-service *wire formats* (embeddings and reranker) have since been confirmed from a machine with access — see [What was tested](#what-was-tested-and-what-wasnt). Still to do: rerun the evaluation with the real services connected, and replace the screenshots and results.
 
 Other project docs: [PLAN.md](PLAN.md) (build plan and issues), [docs/assignment-summary.md](docs/assignment-summary.md), [docs/decisions.md](docs/decisions.md), [docs/course-materials.md](docs/course-materials.md).
 
@@ -99,7 +99,7 @@ Speaker notes in PowerPoint files are not read. Repeated headers and footers (li
 | Quizzes | Same retrieval, a quiz-writing prompt, then checks for 4 distinct options, one valid correct answer, and a real supporting quote | `quiz.py` | Your computer + class chat model |
 | Interface | Gradio app with Materials, Ask and Quiz tabs | `app.py` | Your computer |
 
-Reranking **defaults to off** (`USE_RERANK=false`): the live on-vs-off comparison (two runs, including an interleaved A/B) found no retrieval benefit from the reranker and roughly 2× latency per question — all failures were answer-side, not retrieval-side. The Ask tab has a "Rerank results" checkbox to compare anytime.
+Reranking **defaults to off** (`USE_RERANK=false`): the live on-vs-off comparison (two replication runs, sequential + interleaved A/B) found no retrieval benefit from the reranker and roughly 2× latency per question — and the right source was retrieved in every case, with or without it. The failures were answer-side (pre-fix) and the canonical post-fix numbers are in PR #17: rerank on 7/8 vs off 8/8 by hand grading. The Ask tab has a "Rerank results" checkbox to compare anytime.
 
 **Offline stand-ins** (`services.py`) take over when a service isn't configured or doesn't respond: word-count vectors instead of text embeddings, page text instead of real image embeddings, word overlap instead of the reranker, and quoted passages instead of written answers. Quizzes fall back to fill-in-the-blank questions. The app shows a warning when this happens.
 
@@ -175,12 +175,12 @@ Other limitations:
 | Light and dark mode are readable | Screenshots of every tab in both modes |
 | Keys stay out of errors | Unit test with a fake service that echoes the key back |
 | Evaluation script runs | Offline dry run (saved in `eval/results/`) plus the live on-vs-off rerank comparison below |
-| Live rerank on-vs-off comparison | Two runs with real services (sequential + interleaved A/B): rerank off 8/8 then 7/8 correct, rerank on 5/8 then 4/8; right source retrieved in every case — the delta was answer-side, and on ran ~2× slower. See PR #19. |
+| Live rerank on-vs-off comparison | Two replication runs (PR #19, sequential + interleaved A/B): rerank off 8/8 then 7/8 correct, rerank on 5/8 then 4/8, right source retrieved in every case. **Measured before the answer fixes in PR #17 and with the document parser (9005) off** — PR #17's post-fix runs are canonical. Conclusion unchanged: keep reranking off by default. |
+| Document parser (port 9005) | Confirmed connected in PR #17's live runs: slide text includes OCR output (`[Text read from the image] … ONE DOES NOT SIMPLY VIBE CODE…` on Week 2 slide 33, from `dots.mocr`). Request format works against the class service. |
 
 | Not tested yet | Why |
 |---|---|
 | Answer and quiz quality with the real chat model | The chat endpoint works (format-verified indirectly) but no eval has been rerun with it yet |
-| The document parser (port 9005) | Its request format is still unconfirmed |
 | Setup on Windows and Mac | Built on Linux; a teammate should follow this README on a fresh clone and fix any missing steps |
 
 ## Working on this as a team

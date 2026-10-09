@@ -13,6 +13,7 @@ stay green.
 import io
 
 import pytest
+from dotenv import load_dotenv
 from PIL import Image
 
 from course_assistant.config import ServiceConfig
@@ -23,12 +24,18 @@ from course_assistant.services import (
     OpenAITextEmbedder,
 )
 
+load_dotenv()  # .env (or env vars) is the documented way to configure the live services
+
+_REQUIRED_ENV = (
+    "CLASS_API_KEY",
+    "TEXT_EMBED_BASE_URL", "TEXT_EMBED_MODEL",
+    "VISUAL_EMBED_BASE_URL", "VISUAL_EMBED_MODEL",
+    "RERANK_BASE_URL", "RERANK_MODEL",
+)
+
 pytestmark = pytest.mark.skipif(
-    not (__import__("os").getenv("CLASS_API_KEY")
-         and __import__("os").getenv("TEXT_EMBED_BASE_URL")
-         and __import__("os").getenv("VISUAL_EMBED_BASE_URL")
-         and __import__("os").getenv("RERANK_BASE_URL")),
-    reason="live class services not configured (CLASS_API_KEY / *_BASE_URL)",
+    not all(__import__("os").getenv(v) for v in _REQUIRED_ENV),
+    reason="live class services not configured (CLASS_API_KEY / *_BASE_URL / *_MODEL)",
 )
 
 

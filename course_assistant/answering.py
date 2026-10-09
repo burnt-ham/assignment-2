@@ -167,10 +167,10 @@ class Answerer:
         self.retriever = retriever
         self.chat_model = chat_model
 
-    def ask(self, question: str, doc_ids: list[str] | None = None) -> AnswerResult:
+    def ask(self, question: str, doc_ids: list[str] | None = None, use_rerank: bool | None = None) -> AnswerResult:
         started = time.perf_counter()
         question = question.strip()
-        retrieval = self.retriever.search(question, doc_ids)
+        retrieval = self.retriever.search(question, doc_ids, use_rerank=use_rerank)
         evidence = retrieval.evidence
         warnings = list(retrieval.warnings)
         if not evidence:

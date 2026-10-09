@@ -52,3 +52,15 @@ def test_rerank_off_by_default(make_assistant, sample_pdf):
     assistant = make_assistant()
     assistant.library.add_file(sample_pdf)
     assert not assistant.retriever.search("chunking").reranked
+
+
+def test_rerank_override_does_not_mutate_shared_state(make_assistant, sample_pdf):
+    # The Ask tab's checkbox must not change the default other features use
+    # (e.g. the Quiz tab's topic search). A per-call override wins for that
+    # search only; the stored default is untouched.
+    assistant = make_assistant()  # stored default: rerank off
+    assistant.library.add_file(sample_pdf)
+    on = assistant.retriever.search("chunking", use_rerank=True)
+    off = assistant.retriever.search("chunking")
+    assert on.reranked and not off.reranked
+    assert not assistant.retriever.use_rerank  # state unchanged

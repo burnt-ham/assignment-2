@@ -82,9 +82,8 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
     def ask(question, doc_ids, rerank_on):
         if not question or not question.strip():
             return "Type a question first.", "", [], ""
-        assistant.retriever.use_rerank = bool(rerank_on)
         try:
-            result = assistant.answerer.ask(question, doc_ids or None)
+            result = assistant.answerer.ask(question, doc_ids or None, use_rerank=bool(rerank_on))
         except Exception as exc:
             return f"❌ {safe_error(exc)}", "", [], ""
 
@@ -147,13 +146,13 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
         with gr.Tab("Ask"):
             ask_docs = gr.Dropdown(choices=doc_choices(), multiselect=True, label="Search in (leave empty to search everything)")
             question = gr.Textbox(label="Question", placeholder="e.g. Find the meme about vibe coding on \"Prod\" and explain it", lines=2)
-            ask_button = gr.Button("Ask", variant="primary")
             rerank_on = gr.Checkbox(
                 value=assistant.settings.use_rerank,
                 label="Rerank results with the class multimodal reranker",
                 info=("Turn off to compare raw fused search order with reranked order "
                       f"(currently {'on' if assistant.settings.use_rerank else 'off'} by default, USE_RERANK)."),
             )
+            ask_button = gr.Button("Ask", variant="primary")
             answer = gr.Markdown()
             with gr.Row():
                 with gr.Column(scale=1):
