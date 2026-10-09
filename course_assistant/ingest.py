@@ -11,15 +11,19 @@ Supported formats:
 from __future__ import annotations
 
 import hashlib
+import io
 import os
 import re
 import shutil
 import subprocess
 import tempfile
+import warnings
+import zipfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import pymupdf
+from PIL import Image
 
 PDF_TYPES = {".pdf"}
 OFFICE_TYPES = {".pptx", ".ppt", ".docx", ".doc"}
@@ -58,6 +62,43 @@ def file_hash(path: str | Path) -> str:
         for block in iter(lambda: handle.read(1 << 20), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+GIF_MAX_SIDE = 1600
+
+
+def freeze_animated_gifs(path: Path, out_dir: Path) -> tuple[Path, int]:
+    """Copy a .pptx with each animated GIF swapped for a still of its first frame.
+
+    LibreOffice draws some large animated GIFs as an empty box (Week 2 slide 37),
+    while PowerPoint shows the first frame. A one-frame GIF under the same name
+    keeps the slide's links working and renders like PowerPoint.
+    """
+    try:
+        source = zipfile.ZipFile(path)
+    except zipfile.BadZipFile:
+        return path, 0  # not a zip; let LibreOffice report the problem
+    out_dir.mkdir(parents=True, exist_ok=True)
+    frozen_path = out_dir / path.name
+    frozen = 0
+    with source, zipfile.ZipFile(frozen_path, "w", zipfile.ZIP_DEFLATED) as target:
+        for item in source.infolist():
+            data = source.read(item)
+            if item.filename.startswith("ppt/media/") and item.filename.lower().endswith(".gif"):
+                try:
+                    with Image.open(io.BytesIO(data)) as gif, warnings.catch_warnings():
+                        warnings.simplefilter("ignore")  # palette-transparency notices are harmless
+                        if getattr(gif, "n_frames", 1) > 1:
+                            frame = gif.convert("RGB")  # the first frame
+                            frame.thumbnail((GIF_MAX_SIDE, GIF_MAX_SIDE))
+                            buffer = io.BytesIO()
+                            frame.save(buffer, format="GIF")
+                            data = buffer.getvalue()
+                            frozen += 1
+                except OSError:
+                    pass  # unreadable image: leave it for LibreOffice
+            target.writestr(item, data)
+    return frozen_path, frozen
 
 
 def convert_to_pdf(path: Path, out_dir: Path, soffice: str = "soffice", timeout: int = 300) -> Path:
@@ -205,6 +246,8 @@ def read_document(path: str | Path, work_dir: Path, soffice: str | None = None) 
     image_dir = work_dir / "pages"
     if suffix in PDF_TYPES:
         return read_pdf(path, image_dir, label="page")
+    if suffix == ".pptx":
+        path, _ = freeze_animated_gifs(path, work_dir / "prepared")
     pdf = convert_to_pdf(path, work_dir / "converted", soffice=soffice)
     label = "slide" if suffix in {".pptx", ".ppt"} else "page"
     return read_pdf(pdf, image_dir, label=label)
