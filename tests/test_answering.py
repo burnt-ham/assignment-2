@@ -150,3 +150,8 @@ def test_bare_id_text_citation_cannot_be_checked(make_assistant, sample_pdf):
     result = assistant.answerer.ask("What does reranking do?")
     assert result.answer == NOT_FOUND and not result.found
     assert any("couldn't be checked" in s.note for s in result.sources)
+
+
+def test_extract_json_falls_back_when_the_answer_is_inside_the_reasoning_block():
+    reply = '<think>{"found": true, "answer": "x", "sources": []}</think>'
+    assert extract_json(reply)["answer"] == "x"

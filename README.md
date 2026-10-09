@@ -109,7 +109,7 @@ Speaker notes in PowerPoint files are not read. Repeated headers and footers (li
 python -m pytest
 ```
 
-56 automated tests run in about 15 seconds and need no internet or class services. They use fake AI services that return scripted replies.
+57 automated tests run in about 15 seconds and need no internet or class services. They use fake AI services that return scripted replies.
 
 - **Unit tests** (`tests/test_ingest.py`, `test_library.py`, `test_retrieval.py`, `test_answering.py`, `test_quiz.py`, `test_config.py`) check individual parts: reading PDF, Markdown and PowerPoint files, chunking with source details, duplicate detection, removal, rank fusion, JSON parsing, quote checks, dropping invented citations, quiz validation, scoring, the fixed answer key, and that keys never appear in error messages.
 - **End-to-end tests** (`tests/test_end_to_end.py`) run complete workflows: add files, repeat an upload, ask text and image questions, make and score a quiz, remove a document and confirm answers no longer use it, questions the materials can't answer, and the chat model and reranker both being down.
@@ -183,7 +183,7 @@ Other limitations:
 
 | Tested | How |
 |---|---|
-| All 56 automated tests pass | `python -m pytest`, Python 3.11, Linux. The PowerPoint conversion test needs a LibreOffice install that can open PPTX files |
+| All 57 automated tests pass | `python -m pytest`, Python 3.11, Linux. The PowerPoint conversion test needs a LibreOffice install that can open PPTX files |
 | All five course decks and the syllabus convert and load | Loaded in the app; slide images compared with the originals by eye |
 | Add, repeat upload, remove, ask, quiz, check and show answer | Clicked through in a browser (Chromium) in offline mode |
 | Light and dark mode are readable | Screenshots of every tab in both modes |

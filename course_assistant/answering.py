@@ -124,7 +124,9 @@ def extract_json(text: str) -> dict:
     """
     leading = _LEADING_REASONING.match(text)
     if leading:
-        candidates = [text[leading.end():]]
+        # Fall back to the whole reply if nothing usable follows the reasoning block,
+        # e.g. when the model put its JSON inside the block.
+        candidates = [text[leading.end():], text]
     elif "</think>" in text and "<think>" not in text:
         # Some chat templates add the opening tag themselves, so the reply starts with
         # reasoning and only "</think>" appears. A "</think>" inside an answer string
@@ -244,7 +246,7 @@ class Answerer:
         parsed = None
         empty_replies = 0
         for attempt in range(2):
-            prompt = user if attempt == 0 else user + "\n\nYour last reply was not valid JSON in the required shape. Reply with the JSON object only."
+            prompt = user if attempt == 0 else user + "\n\nYour last reply was empty or was not valid JSON in the required shape. Reply with the JSON object only."
             try:
                 reply = self.chat_model.complete(SYSTEM_PROMPT, prompt, images, after_images=question_reminder(question))
             except ServiceError as exc:
