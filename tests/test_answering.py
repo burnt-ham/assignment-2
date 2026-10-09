@@ -108,3 +108,20 @@ def test_offline_mode_admits_missing_information(make_assistant, sample_pdf):
 
 def test_empty_library_admits_missing_information(make_assistant):
     assert make_assistant().answerer.ask("What is RAG?").answer == NOT_FOUND
+
+
+def test_question_is_repeated_after_the_images(make_assistant, sample_pdf):
+    chat = FakeChat([{"found": True, "answer": "Passages that keep source metadata.", "sources": [{"evidence_id": "E1", "quote": "preserving source metadata"}]}])
+    assistant = make_assistant(chat=chat)
+    assistant.library.add_file(sample_pdf)
+    assistant.answerer.ask("What does chunking preserve?")
+    assert "What does chunking preserve?" in chat.calls[0]["after_images"]
+
+
+def test_empty_model_replies_are_explained(make_assistant, sample_pdf):
+    chat = FakeChat(["", ""])
+    assistant = make_assistant(chat=chat)
+    assistant.library.add_file(sample_pdf)
+    result = assistant.answerer.ask("What does chunking preserve?")
+    assert not result.found and len(chat.calls) == 2
+    assert any("empty reply" in w for w in result.warnings)

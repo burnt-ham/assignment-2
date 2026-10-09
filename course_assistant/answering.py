@@ -27,7 +27,7 @@ SYSTEM_PROMPT = """You are a course assistant for an MBA class. Answer the stude
 Rules:
 - Use only the evidence. Do not use outside knowledge, and never invent facts, quotes or sources.
 - If the evidence does not answer the question, set "found" to false and say briefly that the materials don't cover it.
-- When an image is relevant, describe what it actually shows (pictures, diagrams, charts, memes and their text).
+- When an image is relevant, describe what it actually shows: the people, objects or scene pictured, the structure of a diagram or chart, and what a meme means, not only the words printed on it.
 - Cite every piece of evidence you rely on in "sources", using its id (like "E2").
 - For text evidence, "quote" must be copied word for word from that evidence (a short phrase or sentence).
 - For image evidence, "quote" may be a short description of what the image shows.
@@ -158,6 +158,12 @@ def check_sources(parsed: AnswerModel, evidence: list[Evidence]) -> tuple[list[C
     return checked, problems
 
 
+def question_reminder(question: str) -> str:
+    """Repeated after the evidence and images. With the question only at the top of a long
+    message, the class chat model sometimes answered a different question found in the evidence."""
+    return f"Question (repeated): {question}\nAnswer this question using only the evidence above. Reply with the JSON object only."
+
+
 def build_user_message(question: str, evidence: list[Evidence]) -> tuple[str, list[str]]:
     lines = [f"Question: {question}", "", "Evidence:"]
     images: list[str] = []
@@ -202,21 +208,27 @@ class Answerer:
     def _model_answer(self, question: str, evidence: list[Evidence], warnings: list[str]) -> AnswerResult:
         user, images = build_user_message(question, evidence)
         parsed = None
+        empty_replies = 0
         for attempt in range(2):
             prompt = user if attempt == 0 else user + "\n\nYour last reply was not valid JSON in the required shape. Reply with the JSON object only."
             try:
-                reply = self.chat_model.complete(SYSTEM_PROMPT, prompt, images)
+                reply = self.chat_model.complete(SYSTEM_PROMPT, prompt, images, after_images=question_reminder(question))
             except ServiceError as exc:
                 warnings.append(f"The answer service is unavailable: {exc}")
                 result = self._offline_answer(question, evidence, warnings)
                 result.answer = "The AI answer service is unavailable right now. These are the most relevant passages I found:\n\n" + result.answer
                 return result
+            if not reply.strip():
+                empty_replies += 1
+                continue
             try:
                 parsed = AnswerModel.model_validate(extract_json(reply))
                 break
             except (ValueError, ValidationError):
                 continue
         if parsed is None:
+            if empty_replies:
+                warnings.append("The model returned an empty reply. It may have used its whole token budget before writing an answer.")
             warnings.append("The model's reply couldn't be read as a valid answer, even after a retry.")
             return AnswerResult(question, "Sorry, I couldn't produce a valid answer. Please try again.", False, [], evidence, warnings, model=self.chat_model.name)
 
