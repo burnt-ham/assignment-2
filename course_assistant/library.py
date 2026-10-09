@@ -289,8 +289,10 @@ class Library:
             )
 
     def _delete_from_indexes(self, doc_id: str) -> None:
-        self.text_index.delete(where={"doc_id": doc_id})
+        # Chroma 1.5.9 can intermittently lose the remaining text HNSW reader
+        # if text is deleted before the image collection in the same client.
         self.image_index.delete(where={"doc_id": doc_id})
+        self.text_index.delete(where={"doc_id": doc_id})
 
     def reindex(self) -> None:
         """Rebuild both vector indexes, e.g. after switching embedding models."""
