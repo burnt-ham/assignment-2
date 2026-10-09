@@ -46,6 +46,29 @@ def test_remove_deletes_everything_searchable(sample_pdf, sample_md, tmp_path):
     assert not (tmp_path / "data" / "docs" / pdf.doc_id).exists()
 
 
+def test_removal_keeps_remaining_text_index_queryable_after_image_deletion(sample_pdf, sample_md, tmp_path, monkeypatch):
+    library = new_library(tmp_path / "data")
+    pdf = library.add_file(sample_pdf).document
+    library.add_file(sample_md)
+    deletion_order = []
+    original_image_delete = library.image_index.delete
+    original_text_delete = library.text_index.delete
+
+    def delete_images(*args, **kwargs):
+        deletion_order.append("images")
+        return original_image_delete(*args, **kwargs)
+
+    def delete_text(*args, **kwargs):
+        deletion_order.append("text")
+        return original_text_delete(*args, **kwargs)
+
+    monkeypatch.setattr(library.image_index, "delete", delete_images)
+    monkeypatch.setattr(library.text_index, "delete", delete_text)
+    library.remove(pdf.doc_id)
+    assert deletion_order == ["images", "text"]
+    assert library.text_vector_search("office hours", 10)
+
+
 def test_library_survives_restart(sample_pdf, tmp_path):
     library = new_library(tmp_path / "data")
     doc = library.add_file(sample_pdf).document

@@ -39,6 +39,8 @@ def test_full_workflow_add_ask_quiz_remove(make_assistant, sample_pdf, sample_md
         "explanation": "Reranking prioritizes which chunks are supplied.",
         "evidence_id": "E1",
         "quote": "prioritizes which chunks are supplied",
+        "concept": "Reranking",
+        "learning_target": "Explain what reranking prioritizes",
     }]}]
     quiz = assistant.quiz_maker.make_quiz([pdf.doc_id], topic="reranking", count=1)
     assert quiz.questions[0].evidence.doc_id == pdf.doc_id

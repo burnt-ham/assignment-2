@@ -144,6 +144,10 @@ class Library:
             self.reindex()
         self._rebuild_keyword_index()
 
+    def close(self) -> None:
+        """Release Chroma files before a Study Space is removed on Windows."""
+        self._client.close()
+
     # -- persistence ---------------------------------------------------------
 
     def _embedder_names(self) -> dict[str, str]:
@@ -285,8 +289,10 @@ class Library:
             )
 
     def _delete_from_indexes(self, doc_id: str) -> None:
-        self.text_index.delete(where={"doc_id": doc_id})
+        # Chroma 1.5.9 can intermittently lose the remaining text HNSW reader
+        # if text is deleted before the image collection in the same client.
         self.image_index.delete(where={"doc_id": doc_id})
+        self.text_index.delete(where={"doc_id": doc_id})
 
     def reindex(self) -> None:
         """Rebuild both vector indexes, e.g. after switching embedding models."""
