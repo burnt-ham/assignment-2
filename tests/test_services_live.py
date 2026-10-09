@@ -11,6 +11,7 @@ stay green.
 """
 
 import io
+import os
 
 import pytest
 from dotenv import load_dotenv
@@ -24,28 +25,34 @@ from course_assistant.services import (
     OpenAITextEmbedder,
 )
 
-load_dotenv()  # .env (or env vars) is the documented way to configure the live services
-
+# Read .env values WITHOUT leaking them into the test session: snapshot the
+# environment, load the repo .env, capture just what we need, then restore.
+# (A bare module-level load_dotenv() poisons other tests that assume a clean
+# environment, e.g. test_config's load_settings assertions.)
+_ENV_BEFORE = set(os.environ)
+load_dotenv()
 _REQUIRED_ENV = (
     "CLASS_API_KEY",
     "TEXT_EMBED_BASE_URL", "TEXT_EMBED_MODEL",
     "VISUAL_EMBED_BASE_URL", "VISUAL_EMBED_MODEL",
     "RERANK_BASE_URL", "RERANK_MODEL",
 )
+_ENV = {k: os.getenv(k) for k in _REQUIRED_ENV}
+for _k in set(os.environ) - _ENV_BEFORE:
+    os.environ.pop(_k, None)
+del _ENV_BEFORE
 
 pytestmark = pytest.mark.skipif(
-    not all(__import__("os").getenv(v) for v in _REQUIRED_ENV),
+    not all(_ENV.values()),
     reason="live class services not configured (CLASS_API_KEY / *_BASE_URL / *_MODEL)",
 )
 
 
 def cfg(env_prefix: str) -> ServiceConfig:
-    import os
-
     return ServiceConfig(
-        base_url=os.getenv(f"{env_prefix}_BASE_URL", "").rstrip("/"),
-        api_key=os.getenv("CLASS_API_KEY", ""),
-        model=os.getenv(f"{env_prefix}_MODEL", ""),
+        base_url=_ENV.get(f"{env_prefix}_BASE_URL", "").rstrip("/"),
+        api_key=_ENV.get("CLASS_API_KEY", ""),
+        model=_ENV.get(f"{env_prefix}_MODEL", ""),
     )
 
 
