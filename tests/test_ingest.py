@@ -78,7 +78,10 @@ def test_powerpoint_is_converted_to_slide_images(tmp_path):
 
 
 def _deck_with_animated_gif(tmp_path):
-    frames = [Image.new("RGB", (64, 48), color) for color in ("navy", "white", "red")]
+    # Starts blank, then draws a navy box: the box is the frame worth keeping
+    frames = [Image.new("RGB", (64, 48), "white") for _ in range(3)]
+    for frame in frames[1:]:
+        frame.paste("navy", (8, 8, 56, 40))
     gif = io.BytesIO()
     frames[0].save(gif, format="GIF", save_all=True, append_images=frames[1:], duration=100, loop=0)
     gif.seek(0)
@@ -91,7 +94,7 @@ def _deck_with_animated_gif(tmp_path):
     return path
 
 
-def test_animated_gifs_become_their_first_frame(tmp_path):
+def test_animated_gifs_become_their_most_detailed_frame(tmp_path):
     deck = _deck_with_animated_gif(tmp_path)
     frozen_path, frozen = freeze_animated_gifs(deck, tmp_path / "prepared")
     assert frozen == 1
@@ -100,8 +103,8 @@ def test_animated_gifs_become_their_first_frame(tmp_path):
         gif_name = next(n for n in after.namelist() if n.endswith(".gif"))
         with Image.open(io.BytesIO(after.read(gif_name))) as still:
             assert getattr(still, "n_frames", 1) == 1
-            red, green, blue = still.convert("RGB").getpixel((10, 10))
-            assert blue > 100 and red < 50  # navy, the first frame
+            red, green, blue = still.convert("RGB").getpixel((32, 24))
+            assert blue > 100 and red < 50  # navy: the drawn frame, not the blank first one
 
 
 def test_non_zip_file_is_left_alone(tmp_path):
@@ -111,11 +114,9 @@ def test_non_zip_file_is_left_alone(tmp_path):
 
 
 @pytest.mark.skipif(shutil.which("soffice") is None, reason="LibreOffice is not installed")
-def test_slide_with_animated_gif_shows_first_frame(tmp_path):
-    # End-to-end check of the pipeline. LibreOffice only drops large GIFs (Week 2
-    # slide 37 is 3002x1728 with 241 frames), so this small GIF would render even
-    # without the fix; test_animated_gifs_become_their_first_frame covers the fix.
+def test_slide_with_animated_gif_shows_the_drawn_frame(tmp_path):
+    # End-to-end check: the converted slide shows the navy box, not the blank first frame.
     pages = read_document(_deck_with_animated_gif(tmp_path), tmp_path / "work")
     with Image.open(pages[0].image_path) as image:
         navy = sum(1 for r, g, b in image.convert("RGB").getdata() if b > 100 and r < 50 and g < 50)
-    assert navy > 1000  # the GIF's first frame was drawn, not an empty box
+    assert navy > 1000  # the drawn frame, not an empty box

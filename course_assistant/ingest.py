@@ -23,7 +23,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import pymupdf
-from PIL import Image
+from PIL import Image, ImageFilter
 
 PDF_TYPES = {".pdf"}
 OFFICE_TYPES = {".pptx", ".ppt", ".docx", ".doc"}
@@ -67,12 +67,37 @@ def file_hash(path: str | Path) -> str:
 GIF_MAX_SIDE = 1600
 
 
-def freeze_animated_gifs(path: Path, out_dir: Path) -> tuple[Path, int]:
-    """Copy a .pptx with each animated GIF swapped for a still of its first frame.
+def _detail(frame: Image.Image) -> float:
+    """How much is drawn in a frame: the average edge strength of a small greyscale copy."""
+    small = frame.convert("L")
+    small.thumbnail((256, 256))
+    edges = small.filter(ImageFilter.FIND_EDGES)
+    return sum(edges.getdata()) / (edges.width * edges.height)
 
-    LibreOffice draws some large animated GIFs as an empty box (Week 2 slide 37),
-    while PowerPoint shows the first frame. A one-frame GIF under the same name
-    keeps the slide's links working and renders like PowerPoint.
+
+def most_detailed_frame(gif: Image.Image) -> Image.Image:
+    """Pick the frame with the most drawn on it (the earliest one wins ties).
+
+    Animations often start empty and build up a diagram (Week 5 slide 8 starts
+    as a blank beige box), so the first frame can carry nothing to search or describe.
+    """
+    best, best_detail = None, -1.0
+    for index in range(gif.n_frames):
+        gif.seek(index)
+        frame = gif.convert("RGB")
+        detail = _detail(frame)
+        if detail > best_detail:
+            best, best_detail = frame, detail
+    return best
+
+
+def freeze_animated_gifs(path: Path, out_dir: Path) -> tuple[Path, int]:
+    """Copy a .pptx with each animated GIF swapped for a still of its most detailed frame.
+
+    LibreOffice draws some large animated GIFs as an empty box (Week 2 slide 37).
+    A one-frame GIF under the same name keeps the slide's links working, and
+    choosing the most detailed frame gives the image search and the vision model
+    something to work with when an animation starts blank.
     """
     try:
         source = zipfile.ZipFile(path)
@@ -89,7 +114,7 @@ def freeze_animated_gifs(path: Path, out_dir: Path) -> tuple[Path, int]:
                     with Image.open(io.BytesIO(data)) as gif, warnings.catch_warnings():
                         warnings.simplefilter("ignore")  # palette-transparency notices are harmless
                         if getattr(gif, "n_frames", 1) > 1:
-                            frame = gif.convert("RGB")  # the first frame
+                            frame = most_detailed_frame(gif)
                             frame.thumbnail((GIF_MAX_SIDE, GIF_MAX_SIDE))
                             buffer = io.BytesIO()
                             frame.save(buffer, format="GIF")
