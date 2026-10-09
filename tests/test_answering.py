@@ -17,6 +17,23 @@ def test_extract_json_handles_code_fences_and_extra_words():
         extract_json("no json here")
 
 
+def test_extract_json_skips_reasoning_block():
+    reply = '<think>The answer needs {"evidence_id": ...} so I should cite E1.</think>\n{"answer": "x", "sources": []}'
+    assert extract_json(reply) == {"answer": "x", "sources": []}
+    # Some chat templates add the opening tag themselves, so only the closing tag appears
+    assert extract_json('Cite {E1}.</think>{"answer": "y", "sources": []}') == {"answer": "y", "sources": []}
+
+
+def test_extract_json_ignores_braces_before_the_object():
+    assert extract_json('Using {E1}: {"answer": "x", "sources": []} hope that helps {:}') == {"answer": "x", "sources": []}
+
+
+def test_sources_given_as_bare_ids_are_accepted():
+    parsed = AnswerModel.model_validate({"answer": "x", "sources": ["E1", {"evidence_id": "E2", "quote": "q"}]})
+    assert [s.evidence_id for s in parsed.sources] == ["E1", "E2"]
+    assert parsed.sources[0].quote == ""
+
+
 def test_quote_check():
     source = "Reranking compares candidate chunks to the original question and prioritizes them."
     assert quote_supported("compares candidate chunks to the original question", source)
@@ -91,3 +108,50 @@ def test_offline_mode_admits_missing_information(make_assistant, sample_pdf):
 
 def test_empty_library_admits_missing_information(make_assistant):
     assert make_assistant().answerer.ask("What is RAG?").answer == NOT_FOUND
+
+
+def test_question_is_repeated_after_the_images(make_assistant, sample_pdf):
+    chat = FakeChat([{"found": True, "answer": "Passages that keep source metadata.", "sources": [{"evidence_id": "E1", "quote": "preserving source metadata"}]}])
+    assistant = make_assistant(chat=chat)
+    assistant.library.add_file(sample_pdf)
+    assistant.answerer.ask("What does chunking preserve?")
+    assert "What does chunking preserve?" in chat.calls[0]["after_images"]
+
+
+def test_empty_model_replies_are_explained(make_assistant, sample_pdf):
+    chat = FakeChat(["", ""])
+    assistant = make_assistant(chat=chat)
+    assistant.library.add_file(sample_pdf)
+    result = assistant.answerer.ask("What does chunking preserve?")
+    assert not result.found and len(chat.calls) == 2
+    assert any("empty reply" in w for w in result.warnings)
+
+
+def test_extract_json_prefers_the_final_object():
+    reply = 'Example: {"found": true, "answer": "Monday", "sources": ["E1"]} Correction: {"found": true, "answer": "Tuesday", "sources": ["E2"]}'
+    assert extract_json(reply)["answer"] == "Tuesday"
+    # Objects nested inside the answer object don't count as separate candidates
+    assert extract_json('{"answer": "x", "sources": [{"evidence_id": "E1", "quote": "q"}]}')["answer"] == "x"
+
+
+def test_extract_json_leaves_think_tags_inside_the_answer_alone():
+    reply = '{"found": true, "answer": "Qwen wraps reasoning in <think>...</think> tags.", "sources": []}'
+    assert extract_json(reply)["answer"] == "Qwen wraps reasoning in <think>...</think> tags."
+    lone_closing_tag = '{"found": true, "answer": "The tag </think> ends reasoning.", "sources": []}'
+    assert extract_json(lone_closing_tag)["answer"] == "The tag </think> ends reasoning."
+    with_reasoning = '<think>Plan {E1}</think>\n{"found": true, "answer": "Use <think> tags.", "sources": []}'
+    assert extract_json(with_reasoning)["answer"] == "Use <think> tags."
+
+
+def test_bare_id_text_citation_cannot_be_checked(make_assistant, sample_pdf):
+    chat = FakeChat([{"found": True, "answer": "It re-orders candidates.", "sources": ["E1"]}])
+    assistant = make_assistant(chat=chat)
+    assistant.library.add_file(sample_pdf)
+    result = assistant.answerer.ask("What does reranking do?")
+    assert result.answer == NOT_FOUND and not result.found
+    assert any("couldn't be checked" in s.note for s in result.sources)
+
+
+def test_extract_json_falls_back_when_the_answer_is_inside_the_reasoning_block():
+    reply = '<think>{"found": true, "answer": "x", "sources": []}</think>'
+    assert extract_json(reply)["answer"] == "x"

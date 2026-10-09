@@ -15,7 +15,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from .retrieval import Evidence, Retriever
 from .services import ChatModel, ServiceError, tokens
@@ -27,7 +27,7 @@ SYSTEM_PROMPT = """You are a course assistant for an MBA class. Answer the stude
 Rules:
 - Use only the evidence. Do not use outside knowledge, and never invent facts, quotes or sources.
 - If the evidence does not answer the question, set "found" to false and say briefly that the materials don't cover it.
-- When an image is relevant, describe what it actually shows (pictures, diagrams, charts, memes and their text).
+- When an image is relevant, describe what it actually shows: the people, objects or scene pictured, the structure of a diagram or chart, and what a meme means, not only the words printed on it.
 - Cite every piece of evidence you rely on in "sources", using its id (like "E2").
 - For text evidence, "quote" must be copied word for word from that evidence (a short phrase or sentence).
 - For image evidence, "quote" may be a short description of what the image shows.
@@ -45,6 +45,16 @@ class AnswerModel(BaseModel):
     found: bool = True
     answer: str = Field(min_length=1)
     sources: list[SourceModel] = Field(default_factory=list)
+
+    @field_validator("sources", mode="before")
+    @classmethod
+    def _bare_ids(cls, value):
+        """Accept sources given as bare ids, e.g. ["E1"], so one missing quote doesn't
+        discard the whole reply. A bare id has no quote, so it counts as support only
+        for image evidence; a text source without a quote can't be checked and fails."""
+        if isinstance(value, list):
+            return [{"evidence_id": s} if isinstance(s, str) else s for s in value]
+        return value
 
 
 @dataclass
@@ -85,16 +95,54 @@ class AnswerResult:
         }
 
 
+_LEADING_REASONING = re.compile(r"\s*<think>.*?</think>", re.S)
+
+
+def _top_level_objects(text: str) -> list[dict]:
+    """Every JSON object in the text that isn't nested inside another one, in order."""
+    decoder = json.JSONDecoder()
+    found, pos = [], 0
+    while (start := text.find("{", pos)) != -1:
+        try:
+            obj, end = decoder.raw_decode(text, start)
+        except ValueError:
+            pos = start + 1
+            continue
+        if isinstance(obj, dict):
+            found.append(obj)
+        pos = end
+    return found
+
+
 def extract_json(text: str) -> dict:
-    """Pull a JSON object out of a model reply, tolerating code fences or extra words."""
-    text = text.strip()
-    fenced = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
-    if fenced:
-        text = fenced.group(1).strip()
-    start, end = text.find("{"), text.rfind("}")
-    if start == -1 or end <= start:
-        raise ValueError("no JSON object in reply")
-    return json.loads(text[start : end + 1])
+    """Pull the model's JSON object out of its reply.
+
+    Tolerates code fences, extra words and a reasoning model's <think>...</think>
+    block. Only a reasoning block at the start of the reply is removed, so text
+    inside the answer is never rewritten. If the reply holds several objects
+    (for example an example followed by the real answer), the last one wins.
+    """
+    leading = _LEADING_REASONING.match(text)
+    if leading:
+        # Fall back to the whole reply if nothing usable follows the reasoning block,
+        # e.g. when the model put its JSON inside the block.
+        candidates = [text[leading.end():], text]
+    elif "</think>" in text and "<think>" not in text:
+        # Some chat templates add the opening tag themselves, so the reply starts with
+        # reasoning and only "</think>" appears. A "</think>" inside an answer string
+        # is also possible, so fall back to the whole reply if nothing follows the tag.
+        candidates = [text.split("</think>", 1)[1], text]
+    else:
+        candidates = [text]
+    for candidate in candidates:
+        candidate = candidate.strip()
+        fenced = re.search(r"```(?:json)?\s*(.*?)```", candidate, re.S)
+        if fenced:
+            candidate = fenced.group(1).strip()
+        objects = _top_level_objects(candidate)
+        if objects:
+            return objects[-1]
+    raise ValueError("no JSON object in reply")
 
 
 def _normalize(text: str) -> str:
@@ -136,9 +184,20 @@ def check_sources(parsed: AnswerModel, evidence: list[Evidence]) -> tuple[list[C
                 note = "Quote found in the slide's text."
         else:
             ok = quote_supported(source.quote, item.text)
-            note = "Quote found in the source." if ok else "Quote not found in the source text."
+            if ok:
+                note = "Quote found in the source."
+            elif not source.quote.strip():
+                note = "No quote was given, so this text source couldn't be checked."
+            else:
+                note = "Quote not found in the source text."
         checked.append(CheckedSource(item, source.quote, ok, note))
     return checked, problems
+
+
+def question_reminder(question: str) -> str:
+    """Repeated after the evidence and images. With the question only at the top of a long
+    message, the class chat model sometimes answered a different question found in the evidence."""
+    return f"Question (repeated): {question}\nAnswer this question using only the evidence above. Reply with the JSON object only."
 
 
 def build_user_message(question: str, evidence: list[Evidence]) -> tuple[str, list[str]]:
@@ -185,21 +244,27 @@ class Answerer:
     def _model_answer(self, question: str, evidence: list[Evidence], warnings: list[str]) -> AnswerResult:
         user, images = build_user_message(question, evidence)
         parsed = None
+        empty_replies = 0
         for attempt in range(2):
-            prompt = user if attempt == 0 else user + "\n\nYour last reply was not valid JSON in the required shape. Reply with the JSON object only."
+            prompt = user if attempt == 0 else user + "\n\nYour last reply was empty or was not valid JSON in the required shape. Reply with the JSON object only."
             try:
-                reply = self.chat_model.complete(SYSTEM_PROMPT, prompt, images)
+                reply = self.chat_model.complete(SYSTEM_PROMPT, prompt, images, after_images=question_reminder(question))
             except ServiceError as exc:
                 warnings.append(f"The answer service is unavailable: {exc}")
                 result = self._offline_answer(question, evidence, warnings)
                 result.answer = "The AI answer service is unavailable right now. These are the most relevant passages I found:\n\n" + result.answer
                 return result
+            if not reply.strip():
+                empty_replies += 1
+                continue
             try:
                 parsed = AnswerModel.model_validate(extract_json(reply))
                 break
             except (ValueError, ValidationError):
                 continue
         if parsed is None:
+            if empty_replies:
+                warnings.append("The model returned an empty reply. It may have used its whole token budget before writing an answer.")
             warnings.append("The model's reply couldn't be read as a valid answer, even after a retry.")
             return AnswerResult(question, "Sorry, I couldn't produce a valid answer. Please try again.", False, [], evidence, warnings, model=self.chat_model.name)
 

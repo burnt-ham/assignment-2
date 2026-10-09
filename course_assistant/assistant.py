@@ -36,7 +36,7 @@ def build_services(settings: Settings) -> Services:
     timeout = settings.request_timeout
     status = []
 
-    chat = OpenAIChatModel(settings.llm, timeout) if settings.llm.configured else None
+    chat = OpenAIChatModel(settings.llm, timeout, thinking=False) if settings.llm.configured else None
     status.append(("Answers and quizzes", chat.name if chat else "not set: offline mode quotes passages instead of writing answers", bool(chat)))
 
     if settings.text_embed.configured:

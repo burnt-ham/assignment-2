@@ -6,7 +6,8 @@ Usage (from the project folder, with the course files already added in the app):
 
 Results go to eval/results/: a JSON file with every answer, and a Markdown
 table to paste into the README. Automatic checks are a first pass only. Read
-the answers and fill in the "correct (team check)" column yourselves.
+the answers and fill in the "correct (team check)" column yourselves, comparing
+each answer with its "expected_answer" (copied into the JSON and CSV rows).
 """
 
 from __future__ import annotations
@@ -60,6 +61,7 @@ def run(assistant: CourseAssistant, questions: list[dict], label: str, options: 
                     "id": item["id"],
                     "type": item["type"],
                     "question": item["question"],
+                    "expected_answer": item.get("expected_answer", ""),
                     "answer": result.answer,
                     "found": result.found,
                     "cited_sources": [f"{n}, p.{p}" for n, p in cited],

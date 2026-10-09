@@ -64,8 +64,8 @@ class FakeChat:
         self.fail = fail
         self.calls: list[dict] = []
 
-    def complete(self, system, user, image_paths=None, max_tokens=2000):
-        self.calls.append({"system": system, "user": user, "images": list(image_paths or [])})
+    def complete(self, system, user, image_paths=None, max_tokens=2000, after_images=""):
+        self.calls.append({"system": system, "user": user, "images": list(image_paths or []), "after_images": after_images})
         if self.fail:
             raise ServiceError("couldn't reach the chat model service at http://example.invalid")
         reply = self.replies.pop(0) if self.replies else "{}"
