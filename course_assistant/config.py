@@ -41,7 +41,7 @@ class Settings:
     # "hybrid" = keyword + text embeddings + visual embeddings
     # "embeddings_only" = text + visual embeddings, no keyword search
     retrieval_mode: str = "hybrid"
-    use_rerank: bool = True
+    use_rerank: bool = False
     request_timeout: float = 120.0
     soffice_path: str = "soffice"
 
@@ -77,7 +77,7 @@ def load_settings(env_file: str | Path | None = None) -> Settings:
         parser=_service("PARSER", shared_key),
         data_dir=Path(data_dir) if data_dir else PROJECT_ROOT / "data",
         retrieval_mode=os.getenv("RETRIEVAL_MODE", "hybrid").strip() or "hybrid",
-        use_rerank=_bool("USE_RERANK", True),
+        use_rerank=_bool("USE_RERANK", False),
         request_timeout=float(os.getenv("REQUEST_TIMEOUT", "120")),
         soffice_path=os.getenv("SOFFICE_PATH", "soffice").strip() or "soffice",
     )

@@ -99,6 +99,8 @@ Speaker notes in PowerPoint files are not read. Repeated headers and footers (li
 | Quizzes | Same retrieval, a quiz-writing prompt, then checks for 4 distinct options, one valid correct answer, and a real supporting quote | `quiz.py` | Your computer + class chat model |
 | Interface | Gradio app with Materials, Ask and Quiz tabs | `app.py` | Your computer |
 
+Reranking **defaults to off** (`USE_RERANK=false`): the live on-vs-off comparison (two runs, including an interleaved A/B) found no retrieval benefit from the reranker and roughly 2× latency per question — all failures were answer-side, not retrieval-side. The Ask tab has a "Rerank results" checkbox to compare anytime.
+
 **Offline stand-ins** (`services.py`) take over when a service isn't configured or doesn't respond: word-count vectors instead of text embeddings, page text instead of real image embeddings, word overlap instead of the reranker, and quoted passages instead of written answers. Quizzes fall back to fill-in-the-blank questions. The app shows a warning when this happens.
 
 **Keys:** read only from `.env` or environment variables on the computer running the app. They are sent only to the class services, and are removed from any error message before it is shown or logged (`config.py: redact`).
@@ -172,13 +174,13 @@ Other limitations:
 | Add, repeat upload, remove, ask, quiz, check and show answer | Clicked through in a browser (Chromium) in offline mode |
 | Light and dark mode are readable | Screenshots of every tab in both modes |
 | Keys stay out of errors | Unit test with a fake service that echoes the key back |
-| Evaluation script runs | Offline dry run, saved in `eval/results/` |
+| Evaluation script runs | Offline dry run (saved in `eval/results/`) plus the live on-vs-off rerank comparison below |
+| Live rerank on-vs-off comparison | Two runs with real services (sequential + interleaved A/B): rerank off 8/8 then 7/8 correct, rerank on 5/8 then 4/8; right source retrieved in every case — the delta was answer-side, and on ran ~2× slower. See PR #19. |
 
 | Not tested yet | Why |
 |---|---|
 | Answer and quiz quality with the real chat model | The chat endpoint works (format-verified indirectly) but no eval has been rerun with it yet |
 | The document parser (port 9005) | Its request format is still unconfirmed |
-| The real design comparison (reranking on vs off) | Needs the real services everywhere, then `scripts/evaluate.py --compare rerank` |
 | Setup on Windows and Mac | Built on Linux; a teammate should follow this README on a fresh clone and fix any missing steps |
 
 ## Working on this as a team

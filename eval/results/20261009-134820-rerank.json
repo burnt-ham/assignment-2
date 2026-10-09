@@ -1,0 +1,319 @@
+{
+  "meta": {
+    "comparison": "rerank",
+    "services": [
+      [
+        "Answers and quizzes",
+        "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+        true
+      ],
+      [
+        "Text search by meaning",
+        "nvidia/Nemotron-3-Embed-1B-BF16 (text embedding)",
+        true
+      ],
+      [
+        "Image search",
+        "Qwen/Qwen3-VL-Embedding-2B (visual embedding)",
+        true
+      ],
+      [
+        "Reranking",
+        "Qwen/Qwen3-VL-Reranker-2B (reranker)",
+        true
+      ],
+      [
+        "Reading text inside images",
+        "not set: image-only slides are found by image search only",
+        false
+      ]
+    ],
+    "documents": [
+      "MBAX 6418 Syllabus Fall 2026 (1).pdf",
+      "Week 2 - LLM Fundamentals.pdf",
+      "Week 3 - Prompt Engineering.pdf",
+      "Week 4 - Serving and Debugging.pdf",
+      "Week 5 - Context Engineering and RAG.pdf",
+      "Week 6 - Multimodal Generative AI.pdf"
+    ]
+  },
+  "rows": [
+    {
+      "setting": "rerank_on",
+      "id": "Q1",
+      "type": "text",
+      "question": "When are the professor's office hours?",
+      "answer": "The provided materials do not contain a definition of what a prompt is.",
+      "found": false,
+      "cited_sources": [],
+      "expected_source_retrieved": true,
+      "sources_support_answer": false,
+      "auto_correct": false,
+      "seconds": 12.46,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q2",
+      "type": "text",
+      "question": "How much of the final grade is the final project worth?",
+      "answer": "The final project is worth 45% of the final grade.",
+      "found": true,
+      "cited_sources": [
+        "MBAX 6418 Syllabus Fall 2026 (1).pdf, p.3",
+        "MBAX 6418 Syllabus Fall 2026 (1).pdf, p.2"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 26.75,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q3",
+      "type": "text",
+      "question": "What is the penalty for turning in an assignment late?",
+      "answer": "Not submitting assignments on time results in a 10% grade penalty for every calendar day the assignment is late. Additionally, assignments may not be turned in more than five days late.",
+      "found": true,
+      "cited_sources": [
+        "MBAX 6418 Syllabus Fall 2026 (1).pdf, p.2",
+        "MBAX 6418 Syllabus Fall 2026 (1).pdf, p.3"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 30.46,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q4",
+      "type": "text",
+      "question": "What is KV caching, and what is its tradeoff?",
+      "answer": "Sorry, I couldn't produce a valid answer. Please try again.",
+      "found": false,
+      "cited_sources": [],
+      "expected_source_retrieved": true,
+      "sources_support_answer": false,
+      "auto_correct": false,
+      "seconds": 39.61,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": [
+        "The model's reply couldn't be read as a valid answer, even after a retry."
+      ]
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q5",
+      "type": "text",
+      "question": "In a hybrid RAG pipeline, what does reranking do?",
+      "answer": "In a hybrid RAG pipeline, reranking compares the retrieved candidate chunks to the original question and prioritizes which chunks are supplied to the LLM as context.",
+      "found": true,
+      "cited_sources": [
+        "Week 5 - Context Engineering and RAG.pdf, p.18",
+        "Week 5 - Context Engineering and RAG.pdf, p.18",
+        "Week 5 - Context Engineering and RAG.pdf, p.14"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 15.07,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q6",
+      "type": "visual",
+      "question": "Find the meme about Vibe Coding on \"Prod\" in the Week 2 slides. What do its image and text show?",
+      "answer": "Sorry, I couldn't produce a valid answer. Please try again.",
+      "found": false,
+      "cited_sources": [],
+      "expected_source_retrieved": true,
+      "sources_support_answer": false,
+      "auto_correct": false,
+      "seconds": 29.0,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": [
+        "The model's reply couldn't be read as a valid answer, even after a retry."
+      ]
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q7",
+      "type": "visual",
+      "question": "Describe the diagram of the hybrid RAG pipeline with reranking from the Week 5 slides.",
+      "answer": "The diagram titled 'Hybrid RAG Pipeline with Reranking' illustrates a workflow that begins with a 'Question'. This question enters a 'Retrieval' phase (indicated by blue boxes), which splits into two parallel processes: 'Keyword Search' and an 'Embedding Model' followed by 'Vector Search'. Both of these retrieval methods feed into a 'Candidate Chunks' box. These candidates then move to the 'Reranking' phase (indicated by an orange box), where they pass through a 'Reranker'. The final output is 'Ranked Chunks With Source Details'. The accompanying text explains that in Hybrid RAG, retrieval finds relevant candidate chunks using both keyword and vector search, while reranking compares these candidates to the original question to prioritize which chunks are supplied to the LLM as context.",
+      "found": true,
+      "cited_sources": [
+        "Week 5 - Context Engineering and RAG.pdf, p.18",
+        "Week 5 - Context Engineering and RAG.pdf, p.18"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 12.8,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q8",
+      "type": "unanswerable",
+      "question": "How much does a parking permit for the Koelbel building cost?",
+      "answer": "The provided materials do not contain information regarding the cost of a parking permit for the Koelbel building.",
+      "found": false,
+      "cited_sources": [],
+      "expected_source_retrieved": null,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 11.55,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q1",
+      "type": "text",
+      "question": "When are the professor's office hours?",
+      "answer": "The professor's office hours are Tuesdays and Fridays from 11am to 12pm via Zoom, and they are also available by appointment.",
+      "found": true,
+      "cited_sources": [
+        "MBAX 6418 Syllabus Fall 2026 (1).pdf, p.1",
+        "MBAX 6418 Syllabus Fall 2026 (1).pdf, p.1"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 4.92,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q2",
+      "type": "text",
+      "question": "How much of the final grade is the final project worth?",
+      "answer": "The final project is worth 45% of the final grade.",
+      "found": true,
+      "cited_sources": [
+        "MBAX 6418 Syllabus Fall 2026 (1).pdf, p.3",
+        "MBAX 6418 Syllabus Fall 2026 (1).pdf, p.2"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 4.74,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q3",
+      "type": "text",
+      "question": "What is the penalty for turning in an assignment late?",
+      "answer": "Not submitting assignments on time will result in a 10% grade penalty for every calendar day the assignment is late. Additionally, assignments may not be turned in more than five days late, and the assignment with the lowest score will be dropped from your final grade.",
+      "found": true,
+      "cited_sources": [
+        "MBAX 6418 Syllabus Fall 2026 (1).pdf, p.2",
+        "MBAX 6418 Syllabus Fall 2026 (1).pdf, p.3"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 9.58,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q4",
+      "type": "text",
+      "question": "What is KV caching, and what is its tradeoff?",
+      "answer": "KV caching is a technique where a key-value (KV) cache is used so that decoding can move faster by avoiding the need to reprocess prior tokens when generating new ones, which reduces TTFT. The tradeoff of KV cache is increased memory demands.",
+      "found": true,
+      "cited_sources": [
+        "Week 2 - LLM Fundamentals.pdf, p.11",
+        "Week 2 - LLM Fundamentals.pdf, p.11"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 6.28,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q5",
+      "type": "text",
+      "question": "In a hybrid RAG pipeline, what does reranking do?",
+      "answer": "In a hybrid RAG pipeline, reranking compares the retrieved candidate chunks to the original question and prioritizes which chunks are supplied to the LLM as context.",
+      "found": true,
+      "cited_sources": [
+        "Week 5 - Context Engineering and RAG.pdf, p.18",
+        "Week 5 - Context Engineering and RAG.pdf, p.5"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 7.21,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q6",
+      "type": "visual",
+      "question": "Find the meme about Vibe Coding on \"Prod\" in the Week 2 slides. What do its image and text show?",
+      "answer": "The text excerpt from the Week 2 slides (page 33) identifies the meme as \"Vibe Coding on \u201cProd\u201d\". The provided evidence does not include the image for this specific slide, so the visual content cannot be described.",
+      "found": true,
+      "cited_sources": [
+        "Week 2 - LLM Fundamentals.pdf, p.33"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 15.13,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q7",
+      "type": "visual",
+      "question": "Describe the diagram of the hybrid RAG pipeline with reranking from the Week 5 slides.",
+      "answer": "The diagram titled 'Hybrid RAG Pipeline with Reranking' illustrates a workflow where a user's 'Question' initiates a retrieval process. This process is color-coded, with blue representing 'Retrieval' and orange representing 'Reranking'.\n\nThe retrieval phase splits into two parallel paths to find relevant 'Candidate Chunks':\n1. A 'Keyword Search' path.\n2. A path involving an 'Embedding Model' followed by 'Vector Search'.\n\nThese two paths converge at 'Candidate Chunks'. These chunks then enter the 'Reranking' phase, passing through a 'Reranker' (orange box). The final output is 'Ranked Chunks With Source Details'.\n\nThe slide text explains that RAG uses prepared documents to help an LLM answer questions. In Hybrid RAG, retrieval finds candidate chunks using both keyword and vector search. Then, reranking compares these candidates to the original question to prioritize which chunks are supplied to the LLM as context.",
+      "found": true,
+      "cited_sources": [
+        "Week 5 - Context Engineering and RAG.pdf, p.18",
+        "Week 5 - Context Engineering and RAG.pdf, p.18"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 7.6,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q8",
+      "type": "unanswerable",
+      "question": "How much does a parking permit for the Koelbel building cost?",
+      "answer": "The provided materials do not contain information regarding the cost of a parking permit for the Koelbel building.",
+      "found": false,
+      "cited_sources": [],
+      "expected_source_retrieved": null,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 3.8,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    }
+  ]
+}
