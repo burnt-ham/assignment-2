@@ -2,7 +2,7 @@
 
 Run on 2026-10-09 on a Windows laptop with all five class services connected. The code was branch `claude/assignment-review-access-d0b8wj` at commit 9ddf4eb, with no changes to the quiz code. The library held the syllabus and the Week 2-6 decks. Quizzes were made with `QuizMaker.make_quiz()`, the same code the Quiz tab uses.
 
-**Scope:** this check covers the quiz code on `main` (with #17), not Quiz 2.0 (#15/#16). The table below lists each question's topic, key and cited source, not the full question and option text. The model's quiz output was saved on the testing laptop but isn't in this repo yet, so the generated quizzes can't be checked again from these files alone.
+**Scope:** this check covers the quiz code on `main` (with #17), not Quiz 2.0 (#15/#16). The table below lists each question's topic, key and cited source, not the full question and option text. The full generated quizzes are in [live-quiz-check.json](live-quiz-check.json): every question, its four options, the correct letter, the explanation, the cited source and quote, and the answer-key checks. In quiz 3, question 1, the course number appears as "[hidden]". The test script removes the class key from everything it saves, and the key happens to be the same as the course number.
 
 ## Quizzes generated
 

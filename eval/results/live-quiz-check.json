@@ -1,0 +1,307 @@
+[
+  {
+    "quiz": 1,
+    "document": "Week 2 - LLM Fundamentals.pptx",
+    "topic": "KV caching",
+    "source": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+    "notes": [],
+    "seconds": 7.59,
+    "key_fingerprint": "fd144022d1",
+    "questions": [
+      {
+        "question": "What is the primary benefit of using a key-value (KV) cache during LLM decoding?",
+        "options": [
+          "Reducing the total number of parameters in the model",
+          "Avoiding the need to reprocess prior tokens when generating new ones",
+          "Eliminating the need for GPU hardware",
+          "Preventing the model from forgetting previous context"
+        ],
+        "correct_letter": "B",
+        "explanation": "According to the evidence, KV caching allows decoding to move faster by avoiding the need to reprocess prior tokens when generating new ones.",
+        "document": "Week 2 - LLM Fundamentals.pptx",
+        "location": "slide 11",
+        "quote": "avoiding the need to reprocess prior tokens when generating new ones"
+      },
+      {
+        "question": "What is the tradeoff associated with using KV caching?",
+        "options": [
+          "Decreased model accuracy",
+          "Reduced context window size",
+          "Increased memory demands",
+          "Slower inference speeds"
+        ],
+        "correct_letter": "C",
+        "explanation": "The evidence explicitly states that the tradeoff of KV cache is increased memory demands.",
+        "document": "Week 2 - LLM Fundamentals.pptx",
+        "location": "slide 11",
+        "quote": "The tradeoff of KV cache is increased memory demands"
+      },
+      {
+        "question": "How does prompt (or prefix) caching extend the performance boost of KV caching?",
+        "options": [
+          "By allowing KV cache to be reused across requests",
+          "By reducing the precision of model parameters",
+          "By increasing the size of the context window",
+          "By offloading processing to the CPU"
+        ],
+        "correct_letter": "A",
+        "explanation": "The evidence states that prompt caching extends the performance boost by allowing KV cache to be reused across requests.",
+        "document": "Week 2 - LLM Fundamentals.pptx",
+        "location": "slide 12",
+        "quote": "Prompt (or prefix) caching extends this performance boost by allowing KV cache to be reused across requests"
+      },
+      {
+        "question": "In the example of a long agentic session with prefix caching, how many tokens must the model process for the eleventh message?",
+        "options": [
+          "101K tokens",
+          "100K tokens",
+          "1K tokens",
+          "11K tokens"
+        ],
+        "correct_letter": "C",
+        "explanation": "The evidence explains that with prefix caching, the model can reuse the KV cache for the previous 100K tokens and process only the new 1K tokens.",
+        "document": "Week 2 - LLM Fundamentals.pptx",
+        "location": "slide 12",
+        "quote": "process only the new 1K tokens"
+      },
+      {
+        "question": "What is the consequence of not using prefix caching in the provided agentic session example?",
+        "options": [
+          "The model must prefill the full 101K tokens before beginning generation",
+          "The model cannot generate any output tokens",
+          "The KV cache is automatically deleted",
+          "The TTFT is significantly lowered"
+        ],
+        "correct_letter": "A",
+        "explanation": "The evidence states that without prefix caching, the model must prefill the full 101K tokens before beginning generation.",
+        "document": "Week 2 - LLM Fundamentals.pptx",
+        "location": "slide 12",
+        "quote": "Without prefix caching, the model must prefill the full 101K tokens before beginning generation"
+      }
+    ],
+    "fixed_key_checks": [
+      {
+        "responses": "all_correct",
+        "first_grade": {
+          "correct": 5,
+          "answered": 5,
+          "total": 5,
+          "per_question": {
+            "0": true,
+            "1": true,
+            "2": true,
+            "3": true,
+            "4": true
+          }
+        },
+        "second_grade": {
+          "correct": 5,
+          "answered": 5,
+          "total": 5,
+          "per_question": {
+            "0": true,
+            "1": true,
+            "2": true,
+            "3": true,
+            "4": true
+          }
+        },
+        "same_score": true,
+        "key_fingerprint": "fd144022d1",
+        "key_unchanged": true
+      },
+      {
+        "responses": "all_wrong",
+        "first_grade": {
+          "correct": 0,
+          "answered": 5,
+          "total": 5,
+          "per_question": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false
+          }
+        },
+        "second_grade": {
+          "correct": 0,
+          "answered": 5,
+          "total": 5,
+          "per_question": {
+            "0": false,
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false
+          }
+        },
+        "same_score": true,
+        "key_fingerprint": "fd144022d1",
+        "key_unchanged": true
+      }
+    ]
+  },
+  {
+    "quiz": 2,
+    "document": "Week 5 - Context Engineering and RAG.pptx",
+    "topic": "reranking",
+    "source": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+    "notes": [],
+    "seconds": 6.87,
+    "key_fingerprint": "2b293a46ef",
+    "questions": [
+      {
+        "question": "In a Hybrid RAG Pipeline, what is the primary function of the reranker?",
+        "options": [
+          "To generate the final answer for the user",
+          "To find candidate chunks using keyword search",
+          "To compare candidates to the original question and prioritize chunks for the LLM",
+          "To adapt the model through additional training"
+        ],
+        "correct_letter": "C",
+        "explanation": "According to the evidence, reranking compares candidates to the original question and prioritizes which chunks are supplied to the LLM as context.",
+        "document": "Week 5 - Context Engineering and RAG.pptx",
+        "location": "slide 18",
+        "quote": "Reranking compares these candidates to the original question and prioritizes which chunks are supplied to the LLM as context"
+      },
+      {
+        "question": "Which two search methods are combined in the retrieval phase of a Hybrid RAG pipeline?",
+        "options": [
+          "Keyword search and vector search",
+          "Vector search and fine-tuning",
+          "Keyword search and context optimization",
+          "Embedding models and reranking"
+        ],
+        "correct_letter": "A",
+        "explanation": "The evidence states that retrieval finds relevant candidate chunks using both keyword search and vector search in Hybrid RAG.",
+        "document": "Week 5 - Context Engineering and RAG.pptx",
+        "location": "slide 18",
+        "quote": "Retrieval finds relevant candidate chunks using both keyword search and vector search in Hybrid RAG"
+      },
+      {
+        "question": "What is a key benefit of retrieving relevant evidence early in the RAG process?",
+        "options": [
+          "It increases the accuracy of the embedding model",
+          "It reduces tokens spent processing irrelevant information and saves money",
+          "It eliminates the need for a reranker",
+          "It prevents the Lost in the Middle effect entirely"
+        ],
+        "correct_letter": "B",
+        "explanation": "The evidence indicates that retrieving relevant evidence early can reduce tokens spent processing irrelevant information, which can save money and improve efficiency.",
+        "document": "Week 5 - Context Engineering and RAG.pptx",
+        "location": "slide 20",
+        "quote": "Retrieving relevant evidence early can reduce tokens spent processing irrelevant information... and this can save money, improve efficiency, etc."
+      },
+      {
+        "question": "What is the output of the reranker component in the Hybrid RAG Pipeline?",
+        "options": [
+          "Candidate Chunks",
+          "Ranked Chunks With Source Details",
+          "Embedding Model",
+          "Keyword Search"
+        ],
+        "correct_letter": "B",
+        "explanation": "The diagram in the evidence shows that the Reranker takes Candidate Chunks as input and outputs Ranked Chunks With Source Details.",
+        "document": "Week 5 - Context Engineering and RAG.pptx",
+        "location": "slide 18",
+        "quote": "Ranked Chunks With Source Details"
+      },
+      {
+        "question": "How does RAG optimize context according to the provided evidence?",
+        "options": [
+          "By supplying relevant information when the model responds",
+          "By adapting the model itself through additional training",
+          "By using only vector search for retrieval",
+          "By ignoring the user's original question"
+        ],
+        "correct_letter": "A",
+        "explanation": "The evidence states that RAG optimizes context by supplying relevant information when the model responds.",
+        "document": "Week 5 - Context Engineering and RAG.pptx",
+        "location": "slide 13",
+        "quote": "RAG optimizes context by supplying relevant information when the model responds"
+      }
+    ]
+  },
+  {
+    "quiz": 3,
+    "document": "syllabus-fall-2026.pdf",
+    "topic": "",
+    "source": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+    "notes": [],
+    "seconds": 4.06,
+    "key_fingerprint": "b497292c92",
+    "questions": [
+      {
+        "question": "According to the syllabus, which days and times is the MBAX [hidden] course scheduled to meet?",
+        "options": [
+          "Mondays 09:30 AM to 12:15 PM and Thursdays 08:00 AM to 10:45 AM",
+          "Mondays 08:00 AM to 10:45 AM and Thursdays 09:30 AM to 12:15 PM",
+          "Tuesdays and Fridays 11am to 12pm",
+          "Mondays and Wednesdays 09:30 AM to 12:15 PM"
+        ],
+        "correct_letter": "A",
+        "explanation": "The course meeting information table explicitly lists Mondays from 09:30 AM to 12:15 PM and Thursdays from 08:00 AM to 10:45 AM.",
+        "document": "syllabus-fall-2026.pdf",
+        "location": "page 1",
+        "quote": "Mondays 09:30 AM to 12:15 PM ... Thursdays 08:00 AM to 10:45 AM"
+      },
+      {
+        "question": "What is the weight of the Final Project in the course grading breakdown?",
+        "options": [
+          "20%",
+          "15%",
+          "45%",
+          "5%"
+        ],
+        "correct_letter": "C",
+        "explanation": "The Course Grading table shows that the Final Project accounts for 45% of the final grade.",
+        "document": "syllabus-fall-2026.pdf",
+        "location": "page 2",
+        "quote": "Final Project 45%"
+      },
+      {
+        "question": "What is the policy regarding late quiz submissions?",
+        "options": [
+          "Late submissions are accepted with a 10% penalty",
+          "Late submissions are accepted if approved by the TA",
+          "Late quiz submissions are not accepted",
+          "Late submissions are accepted if the student has a medical excuse"
+        ],
+        "correct_letter": "C",
+        "explanation": "The text explicitly states that the instructor will NOT accept late quiz submissions.",
+        "document": "syllabus-fall-2026.pdf",
+        "location": "page 3",
+        "quote": "I will NOT accept late quiz submissions"
+      },
+      {
+        "question": "What is the policy regarding cell phone usage in class?",
+        "options": [
+          "Cell phones are permitted for taking notes",
+          "Cell phones are not permitted to be used in class at any time for any reason unless expressly permitted",
+          "Cell phones are permitted for emergency calls only if announced before class",
+          "Cell phones are permitted for checking emails during breaks"
+        ],
+        "correct_letter": "B",
+        "explanation": "Under Technology Distractions, the syllabus states that cell phones are not permitted to be used in class at any time for any reason unless expressly permitted.",
+        "document": "syllabus-fall-2026.pdf",
+        "location": "page 3",
+        "quote": "cell phones are not permitted to be used in class at any time for any reason"
+      },
+      {
+        "question": "What is the instructor's stance on using generative AI tools in this course?",
+        "options": [
+          "They are strictly prohibited to prevent plagiarism",
+          "They are permitted, and some assignments may require their use",
+          "They are only permitted for the final project",
+          "They are permitted only if the student cites the AI source"
+        ],
+        "correct_letter": "B",
+        "explanation": "The Acceptable Use of AI section states that students may use gen AI tools however they see fit and that some assignments will require their use.",
+        "document": "syllabus-fall-2026.pdf",
+        "location": "page 6",
+        "quote": "You may use gen AI tools in this course however you see fit. In fact, some assignments will require the use of such tools."
+      }
+    ]
+  }
+]
