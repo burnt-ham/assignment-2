@@ -26,7 +26,7 @@ Dark mode ([screenshot](docs/images/answer-dark-mode.png)) and the Materials tab
 You need:
 - **Python 3.11 or newer**: [python.org/downloads](https://www.python.org/downloads/)
 - **LibreOffice** (free), to read PowerPoint and Word files: [libreoffice.org/download](https://www.libreoffice.org/download/)
-  - On a Mac, LibreOffice installs `soffice` at `/Applications/LibreOffice.app/Contents/MacOS/soffice`. Put that path in `SOFFICE_PATH` in your `.env` (step 3).
+  - On a Mac, the easiest install is [Homebrew](https://brew.sh): `brew install --cask libreoffice`. Installing from the website works too: the app looks in `/Applications/LibreOffice.app` automatically, so you don't need to set `SOFFICE_PATH`.
   - On Windows it's usually `C:\Program Files\LibreOffice\program\soffice.exe`.
   - Without LibreOffice, PDF, TXT and Markdown still work. Export decks to PDF in PowerPoint and upload the PDF instead.
 
@@ -82,7 +82,11 @@ If nothing in the materials supports an answer, the app says so instead of guess
 | Word (.docx, .doc) | Converted to PDF with LibreOffice, then read like a PDF |
 | Text (.txt), Markdown (.md) | Split into sections at Markdown headings; no images |
 
-Speaker notes in PowerPoint files are not read. Repeated headers and footers (like "Syllabus (Subject to Change) 3") are removed from page text so they don't clutter search results. All five course decks in `materials/` were converted and checked by eye, including Week 2 slide 33 (the meme), which matches the original.
+Speaker notes in PowerPoint files are not read. Repeated headers and footers (like "Syllabus (Subject to Change) 3") are removed from page text so they don't clutter search results.
+
+**Animated GIFs** in PowerPoint files are replaced with a still image before conversion. LibreOffice drew some large GIFs as an empty box, so the app keeps the GIF's most detailed frame instead (see Limitations). Videos show their preview image.
+
+**Checking the conversions:** all 42 Week 2 slides were compared, pixel by pixel, with a PDF exported from PowerPoint itself. 41 matched closely; the 42nd (slide 37, a GIF) was blank until the fix above. Slide 33, the meme, matches the original. All 12 GIF slides across the decks were then checked by eye.
 
 ## How it works
 
@@ -148,13 +152,16 @@ Results are saved in `eval/results/` as JSON, CSV and a Markdown table. The scri
 
 ## Limitations and an investigated failure
 
+**Investigated: blank slide images from animated GIFs.** Comparing Week 2 with PowerPoint's own PDF export showed slide 37 as an empty box: LibreOffice skipped its 3002 x 1728, 241-frame GIF. Smaller GIFs drew fine, so the test GIF in `tests/test_ingest.py` couldn't reproduce the original failure. The fix replaces every animated GIF with a single still frame before conversion. Picking the first frame fixed slide 37, but Week 5 slide 8's animation starts blank, so the app picks the most detailed frame instead. This also halved Week 2's conversion time, from about 2 minutes to 1.
+
 **Investigated: the meme question without a document filter (offline).** Asking "Find the meme about Vibe Coding on 'Prod' in the Week 2 slides" across all documents returned syllabus page 7 first and the meme slide second. The syllabus schedule mentions "Week 2", "Vibe Coding" and other query words, so word-overlap scoring ranked it higher. The meme slide itself has only its title as text. Limiting the search to the Week 2 deck put slide 33 first (see the screenshot). With the class visual embedding model and reranker, the image itself should be matched, so the team should rerun this to confirm.
 
 Other limitations:
 - **Class service formats are unconfirmed.** The text embedding, visual embedding, reranker and parser clients follow the usual vLLM formats (`/v1/embeddings`, `/v1/rerank`, `/v1/chat/completions`). They were not tested against the real class services. If a service replies with an error, the message appears in the app and the stand-in takes over for that question.
 - **Source checking is by quote only.** The app confirms each quoted phrase appears in its source. It doesn't check that the source fully supports every sentence of the answer. For image evidence it can't check automatically, so the slide is shown for you to compare.
 - **Picture-only slides:** without the document parser service, a slide whose only text is in an image can be found only through image search.
-- **Speed:** converting large decks takes time (Week 2: about 70 s; Week 6, which has embedded videos, about 28 s). Videos and animations aren't captured, only a still image of each slide.
+- **Animations become one still image.** A GIF is replaced by its most detailed frame. This usually shows the finished diagram, but it can differ from the paused PowerPoint view: Week 5 slide 8's animation starts as an empty box, and the app shows the completed diagram instead. Videos show only their preview image.
+- **Speed:** on a Mac with the class services connected, adding a deck takes about 1 to 3.5 minutes, mostly embedding every slide image. LibreOffice conversion alone takes about 30 to 60 seconds per deck.
 - **One user at a time:** the library is shared by everyone using the same running app.
 
 ## What was tested and what wasn't
@@ -167,13 +174,14 @@ Other limitations:
 | Light and dark mode are readable | Screenshots of every tab in both modes |
 | Keys stay out of errors | Unit test with a fake service that echoes the key back |
 | Evaluation script runs | Offline dry run, saved in `eval/results/` |
+| Materials on a Mac with the class services (issue #4) | All five decks and the syllabus added (149 slides and pages); the same file and a renamed copy were both refused as duplicates; removing Week 2 deleted its 45 text and 42 image index entries and its files, and searches stopped returning it. All three searches ranked Week 2 slide 33 first for "Vibe Coding on Prod meme". |
 
 | Not tested yet | Why |
 |---|---|
 | Any class service (answers, embeddings, reranking, parsing) | This workspace can't reach dobolyi.com |
 | Answer and quiz quality with the real chat model | Same |
 | The real design comparison | Same; needs the class services |
-| Setup on Windows and Mac | Built on Linux; a teammate should follow this README on a fresh clone and fix any missing steps |
+| Setup on Windows | Built on Linux and checked on a Mac; a teammate should follow this README on a fresh Windows clone |
 
 ## Working on this as a team
 

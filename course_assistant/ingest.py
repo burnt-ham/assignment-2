@@ -240,12 +240,14 @@ def read_text(path: Path) -> list[Page]:
 
 
 def _find_soffice() -> str:
-    """Find soffice executable, trying common Windows paths if not in PATH."""
+    """Find soffice executable, trying the usual Windows and Mac install folders if not in PATH."""
     import shutil
     # On Windows, soffice.com is the headless entry point; .exe can hang
     for candidate in [
         "C:/Program Files/LibreOffice/program/soffice.com",
         "C:/Program Files (x86)/LibreOffice/program/soffice.com",
+        # Mac installs from libreoffice.org don't add soffice to PATH (Homebrew does)
+        "/Applications/LibreOffice.app/Contents/MacOS/soffice",
     ]:
         if os.path.isfile(candidate):
             return candidate
