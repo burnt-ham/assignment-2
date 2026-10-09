@@ -187,10 +187,10 @@ Other limitations:
 | Evaluation script runs | Offline dry run, saved in `eval/results/` |
 | All five class services, the Ask tab and the evaluation questions with the real models | On Windows, 2026-10-08: all five services answered, the five decks and the syllabus loaded with LibreOffice, and the 8 questions plus 3 reranking on/off runs completed (see [Evaluation](#evaluation)) |
 | Answer quality with the real chat model | Run 3 answers graded by hand ([eval/results/live-rerank-summary.md](eval/results/live-rerank-summary.md)) |
+| Quizzes with the real chat model | 3 quizzes (15 questions) checked against the slides and syllabus: every question answerable, every key correct, answer key fixed across regrading, solutions hidden until checked or shown ([eval/results/live-quiz-check.md](eval/results/live-quiz-check.md)) |
 
 | Not tested yet | Why |
 |---|---|
-| Quiz quality with the real chat model | Not run yet |
 | Hybrid vs. embeddings-only comparison with the class services | We compared reranking on vs. off instead |
 | Setup on Mac, and a fresh-clone setup by a teammate | A teammate should follow this README on a fresh clone and fix any missing steps |
 
