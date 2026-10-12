@@ -1,6 +1,7 @@
 """Unit tests: adding, de-duplicating and removing documents in the library."""
 
 import shutil
+from pathlib import Path
 
 import pymupdf
 from conftest import make_pdf
@@ -117,3 +118,18 @@ def test_picture_only_pages_without_fingerprints_are_not_matched():
     old = [Page(1, "slide", ""), Page(2, "slide", "")]
     new = [Page(1, "slide", ""), Page(2, "slide", "")]
     assert not same_content(new, old)
+
+
+def test_removal_deletes_gradios_copies_of_page_images(sample_pdf, tmp_path, monkeypatch):
+    from gradio import processing_utils
+
+    from app import remove_document
+
+    monkeypatch.setenv("GRADIO_TEMP_DIR", str(tmp_path / "gradio-cache"))
+    library = new_library(tmp_path / "data")
+    doc = library.add_file(sample_pdf).document
+    # What Gradio does when the app shows these slides in an answer
+    shown = [processing_utils.save_file_to_cache(p.image_path, str(tmp_path / "gradio-cache")) for p in doc.pages]
+    assert all(Path(copy).exists() for copy in shown)
+    assert "Removed" in remove_document(library, doc.doc_id)
+    assert not any(Path(copy).exists() for copy in shown)
