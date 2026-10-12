@@ -11,7 +11,10 @@ Removing a document deletes its files, chunks and index entries.
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import stat
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
@@ -26,6 +29,22 @@ from .services import ImageEmbedder, ServiceError, TextEmbedder
 
 CHUNK_SIZE = 700
 CHUNK_OVERLAP = 100
+
+
+def _remove_tree(path: Path, ignore_errors: bool = False) -> None:
+    """Delete a folder, including read-only parts (OneDrive marks new folders read-only on Windows)."""
+
+    def clear_read_only(func, target, _error):
+        os.chmod(target, stat.S_IWRITE)
+        func(target)
+
+    # Python 3.12 renamed the error hook; the project still supports 3.11
+    hook = {"onexc": clear_read_only} if sys.version_info >= (3, 12) else {"onerror": clear_read_only}
+    try:
+        shutil.rmtree(path, **hook)
+    except OSError:
+        if not ignore_errors:
+            raise
 
 
 @dataclass
@@ -209,7 +228,7 @@ class Library:
             doc_id = digest[:12]
             doc_dir = self.docs_dir / doc_id
             if doc_dir.exists():
-                shutil.rmtree(doc_dir)
+                _remove_tree(doc_dir)
             doc_dir.mkdir(parents=True)
             stored = doc_dir / f"original{path.suffix.lower()}"
             shutil.copyfile(path, stored)
@@ -227,7 +246,7 @@ class Library:
                 doc.chunks = chunk_pages(doc_id, name, pages)
                 self._index_document(doc)
             except (IngestError, ServiceError):
-                shutil.rmtree(doc_dir, ignore_errors=True)
+                _remove_tree(doc_dir, ignore_errors=True)
                 self._delete_from_indexes(doc_id)
                 raise
             self.documents[doc_id] = doc
@@ -243,7 +262,7 @@ class Library:
             if doc is None:
                 return "That document isn't in the library."
             self._delete_from_indexes(doc_id)
-            shutil.rmtree(self.docs_dir / doc_id, ignore_errors=True)
+            _remove_tree(self.docs_dir / doc_id, ignore_errors=True)
             self._save()
             self._rebuild_keyword_index()
             return f"Removed {doc.name} and everything searchable from it."
