@@ -90,7 +90,7 @@ Speaker notes in PowerPoint files are not read. Repeated headers and footers (li
 
 **Links in slide text** are turned into plain text drawn the same way (link colour, underlined) before conversion. LibreOffice treats linked text as one unbreakable piece, so a long link wrapped mid-word: Week 2 slide 7 showed "Artificial Analysis I / ntelligence Index", and the split word also reached the searchable text. Slide images can't be clicked, so nothing is lost. Found by a manual spot check against the original slides.
 
-**Checking the conversions:** all 42 Week 2 slides were compared, pixel by pixel, with a PDF exported from PowerPoint itself. 41 matched closely; the 42nd (slide 37, a GIF) was blank until the fix above. Slide 33, the meme, matches the original. All 12 GIF slides across the decks were then checked by eye.
+**Checking the conversions:** all 42 Week 2 slides were compared, pixel by pixel, with a PDF exported from PowerPoint itself. 41 matched closely; the 42nd (slide 37, a GIF) was blank until the fix above. Slide 33, the meme, matches the original. All 12 GIF slides across the decks were then checked by eye. Kristen also spot-checked the app's slide images against the original slides by eye: Week 2 slides 4, 7, 31 and 33, and Week 5 slide 11. All matched except slide 7, where a long link wrapped mid-word; that is fixed (see Links in slide text above).
 
 ## How it works
 
