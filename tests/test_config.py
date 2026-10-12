@@ -43,3 +43,29 @@ def test_unreachable_service_gives_a_readable_error(monkeypatch):
     model = OpenAIChatModel(ServiceConfig("http://example.invalid/v1", "k", "m"))
     with pytest.raises(ServiceError, match="couldn't reach the chat model service"):
         model.complete("system", "hello")
+
+
+def test_chat_request_can_turn_off_thinking_and_repeat_text_after_images(tmp_path, monkeypatch):
+    from PIL import Image
+
+    image = tmp_path / "slide.png"
+    Image.new("RGB", (8, 8), "white").save(image)
+    sent = {}
+
+    def fake_post(self, path, payload):
+        sent.update(payload)
+        return {"choices": [{"message": {"content": "{}"}}]}
+
+    monkeypatch.setattr(OpenAIChatModel, "_post", fake_post)
+    config = ServiceConfig(base_url="http://example.invalid/v1", api_key="k", model="m")
+
+    OpenAIChatModel(config, thinking=False).complete("sys", "question and evidence", [str(image)], after_images="question again")
+    content = sent["messages"][1]["content"]
+    assert [part["type"] for part in content] == ["text", "image_url", "text"]
+    assert content[-1]["text"] == "question again"
+    assert sent["chat_template_kwargs"] == {"enable_thinking": False}
+
+    sent.clear()
+    OpenAIChatModel(config).complete("sys", "hi")
+    assert "chat_template_kwargs" not in sent
+    assert [part["type"] for part in sent["messages"][1]["content"]] == ["text"]

@@ -65,7 +65,7 @@ def test_visual_question_sends_slide_images_and_returns_them(make_assistant, tmp
 
 
 def test_everything_still_works_when_services_are_down(make_assistant, sample_pdf):
-    assistant = make_assistant(chat=FakeChat(fail=True), reranker=FailingReranker())
+    assistant = make_assistant(chat=FakeChat(fail=True), reranker=FailingReranker(), use_rerank=True)
     doc = assistant.library.add_file(sample_pdf).document
     result = assistant.answerer.ask("What does chunking preserve?")
     assert "unavailable" in result.answer
