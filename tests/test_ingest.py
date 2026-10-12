@@ -13,10 +13,14 @@ from course_assistant.ingest import (
     IngestError,
     drop_repeated_lines,
     file_hash,
+    _find_soffice,
     freeze_animated_gifs,
     read_document,
     read_text,
 )
+
+# The same lookup the app uses, so a Mac install in /Applications counts too
+HAS_LIBREOFFICE = shutil.which(_find_soffice()) is not None
 
 
 def test_pdf_pages_keep_text_and_images(sample_pdf, tmp_path):
@@ -62,7 +66,7 @@ def test_same_bytes_give_same_hash(sample_pdf, tmp_path):
     assert file_hash(sample_pdf) == file_hash(copy)
 
 
-@pytest.mark.skipif(shutil.which("soffice") is None, reason="LibreOffice is not installed")
+@pytest.mark.skipif(not HAS_LIBREOFFICE, reason="LibreOffice is not installed")
 def test_powerpoint_is_converted_to_slide_images(tmp_path):
     deck = Presentation()
     for title in ["Prompt engineering", "Structured output"]:
@@ -113,10 +117,27 @@ def test_non_zip_file_is_left_alone(tmp_path):
     assert freeze_animated_gifs(path, tmp_path / "prepared") == (path, 0)
 
 
-@pytest.mark.skipif(shutil.which("soffice") is None, reason="LibreOffice is not installed")
+@pytest.mark.skipif(not HAS_LIBREOFFICE, reason="LibreOffice is not installed")
 def test_slide_with_animated_gif_shows_the_drawn_frame(tmp_path):
     # End-to-end check: the converted slide shows the navy box, not the blank first frame.
     pages = read_document(_deck_with_animated_gif(tmp_path), tmp_path / "work")
     with Image.open(pages[0].image_path) as image:
         navy = sum(1 for r, g, b in image.convert("RGB").getdata() if b > 100 and r < 50 and g < 50)
     assert navy > 1000  # the drawn frame, not an empty box
+
+
+def test_unreadable_gif_is_left_for_libreoffice(tmp_path):
+    deck = _deck_with_animated_gif(tmp_path)
+    broken = tmp_path / "broken.pptx"
+    with zipfile.ZipFile(deck) as source, zipfile.ZipFile(broken, "w") as target:
+        for item in source.infolist():
+            data = source.read(item)
+            target.writestr(item, b"GIF89a not really an image" if item.filename.endswith(".gif") else data)
+    frozen_path, frozen = freeze_animated_gifs(broken, tmp_path / "prepared")
+    assert frozen == 0 and zipfile.ZipFile(frozen_path).testzip() is None
+
+
+@pytest.mark.skipif(not HAS_LIBREOFFICE, reason="LibreOffice is not installed")
+def test_prepared_copy_is_removed_after_conversion(tmp_path):
+    read_document(_deck_with_animated_gif(tmp_path), tmp_path / "work")
+    assert not (tmp_path / "work" / "prepared").exists()

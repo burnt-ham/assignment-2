@@ -120,7 +120,7 @@ def freeze_animated_gifs(path: Path, out_dir: Path) -> tuple[Path, int]:
                             frame.save(buffer, format="GIF")
                             data = buffer.getvalue()
                             frozen += 1
-                except OSError:
+                except Exception:  # Pillow raises several error types for unusual files
                     pass  # unreadable image: leave it for LibreOffice
             target.writestr(item, data)
     return frozen_path, frozen
@@ -273,8 +273,12 @@ def read_document(path: str | Path, work_dir: Path, soffice: str | None = None) 
     image_dir = work_dir / "pages"
     if suffix in PDF_TYPES:
         return read_pdf(path, image_dir, label="page")
+    prepared = work_dir / "prepared"
     if suffix == ".pptx":
-        path, _ = freeze_animated_gifs(path, work_dir / "prepared")
-    pdf = convert_to_pdf(path, work_dir / "converted", soffice=soffice)
+        path, _ = freeze_animated_gifs(path, prepared)
+    try:
+        pdf = convert_to_pdf(path, work_dir / "converted", soffice=soffice)
+    finally:
+        shutil.rmtree(prepared, ignore_errors=True)  # the prepared copy is only needed for conversion
     label = "slide" if suffix in {".pptx", ".ppt"} else "page"
     return read_pdf(pdf, image_dir, label=label)
