@@ -2,8 +2,8 @@
 
 A Python app that answers questions about the course materials and makes practice quizzes. It searches the slides by keyword, by meaning, and by what the slide images look like (hybrid RAG). It shows the actual slide behind every answer, and it says so when the materials don't cover a question.
 
-> **Status: partly tested against the class AI services.**
-> The first version was built and tested offline, with built-in stand-ins instead of the class models. Anything below marked "offline" still describes those runs. On 2026-10-08 and 2026-10-09 we connected all five class services on a Windows laptop. We then ran the evaluation questions, a reranking on/off comparison and a quiz check (see [Evaluation](#evaluation)). The other screenshots and sections still need to be redone with the class services. See [What was tested and what wasn't](#what-was-tested-and-what-wasnt).
+> **Status: tested against the class AI services.**
+> The first version was built and tested offline, with built-in stand-ins instead of the class models. Anything below marked "offline" still describes those runs. Since then, all five class services have been connected: on a Windows laptop (2026-10-08 and 2026-10-09) for the evaluation questions, a reranking on/off comparison and a quiz check, and on a Mac for adding and removing materials. The embedding and reranker request formats were also confirmed with live tests. See [What was tested and what wasn't](#what-was-tested-and-what-wasnt).
 
 Other project docs: [PLAN.md](PLAN.md) (build plan and issues), [docs/assignment-summary.md](docs/assignment-summary.md), [docs/decisions.md](docs/decisions.md), [docs/course-materials.md](docs/course-materials.md).
 
@@ -106,11 +106,13 @@ Speaker notes in PowerPoint files are not read. Repeated headers and footers (li
 | Document preparation | Upload, skip duplicates (same file bytes, or the same pages in a re-saved copy), convert Office files with LibreOffice, extract text and render page images with PyMuPDF, split text into chunks that keep the document and slide number | `course_assistant/ingest.py`, `library.py` | Your computer |
 | Indexes | Keyword index (bm25s), text vector index and a separate image vector index (chromadb), all saved in `data/` | `library.py` | Your computer |
 | Embeddings | Text chunks go to the text embedding model; page images go to the visual embedding model | `services.py` | Class services |
-| Retrieval | Search all three indexes, combine the results with reciprocal rank fusion, then rerank with the multimodal reranker | `retrieval.py` | Your computer + class reranker |
+| Retrieval | Search all three indexes, combine the results with reciprocal rank fusion, then, if reranking is on, rerank with the multimodal reranker | `retrieval.py` | Your computer + class reranker |
 | Answer generation | Send the best text chunks and slide images to the vision chat model with answering rules; it must reply in JSON with separate `answer` and `sources` fields | `answering.py` | Class chat model |
 | Checks | Validate the JSON (with one retry), drop citations to evidence that wasn't supplied, check each quote appears in its source, and withhold answers nothing supports | `answering.py` | Your computer |
 | Quizzes | Same retrieval, a quiz-writing prompt, then checks for 4 distinct options, one valid correct answer, and a real supporting quote | `quiz.py` | Your computer + class chat model |
 | Interface | Gradio app with Materials, Ask and Quiz tabs | `app.py` | Your computer |
+
+Reranking **defaults to off** (`USE_RERANK=false` in `.env`). Our comparison found it didn't improve answers or citations on our questions and made each answer about 2.5 times slower (see [Evaluation](#evaluation)). To use it, set `USE_RERANK=true`, or tick **Rerank results with the class multimodal reranker** on the Ask tab for a single question.
 
 **Offline stand-ins** (`services.py`) take over when a service isn't configured or doesn't respond: word-count vectors instead of text embeddings, page text instead of real image embeddings, word overlap instead of the reranker, and quoted passages instead of written answers. Quizzes fall back to fill-in-the-blank questions. The app shows a warning when this happens.
 
@@ -122,12 +124,12 @@ Speaker notes in PowerPoint files are not read. Repeated headers and footers (li
 python -m pytest
 ```
 
-57 automated tests run in about 15 seconds and need no internet or class services. They use fake AI services that return scripted replies.
+76 automated tests run in about 20 seconds. 73 of them need no internet or class services: they use fake AI services that return scripted replies. The other 3, in `tests/test_services_live.py`, call the real class services and are skipped unless `.env` points at them.
 
 - **Unit tests** (`tests/test_ingest.py`, `test_library.py`, `test_retrieval.py`, `test_answering.py`, `test_quiz.py`, `test_config.py`) check individual parts: reading PDF, Markdown and PowerPoint files, chunking with source details, duplicate detection, removal, rank fusion, JSON parsing, quote checks, dropping invented citations, quiz validation, scoring, the fixed answer key, and that keys never appear in error messages.
 - **End-to-end tests** (`tests/test_end_to_end.py`) run complete workflows: add files, repeat an upload, ask text and image questions, make and score a quiz, remove a document and confirm answers no longer use it, questions the materials can't answer, and the chat model and reranker both being down.
 
-The PowerPoint test is skipped automatically if LibreOffice isn't installed.
+The 4 PowerPoint conversion tests are skipped automatically if LibreOffice isn't installed.
 
 ## Evaluation
 
@@ -166,7 +168,7 @@ Where the team check differed from the automatic check:
 - **Extra, unrelated citations.** Reranking on: Q2 (syllabus p.7) and Q5 (Week 5 slide 14). Reranking off: Q7 (Week 5 slide 5). Each answer was right and also cited the correct source, so the automatic check, which only looks for the expected source, couldn't catch these.
 - **An invented image detail.** With reranking on, the Q6 meme answer said Boromir has "his arms outstretched". In the image he raises one hand with his fingers together.
 
-**Interpretation.** We would keep reranking **off** by default. On our questions it didn't make any answer more accurate or any citation better, and it made every answer slower, about 2.5 times on average. The time cost showed up in every question and every run. The one-question differences in correctness and sources could be chance, because answers vary from run to run and we graded only one run by hand. So we don't conclude that reranking hurts. We conclude that it didn't help here. Our questions each have one clearly matching slide, and the expected source was retrieved in every run without reranking. Reranking would matter more when many similar passages compete, such as broad questions that span several decks. That's why we kept it as a setting (`USE_RERANK=true` in `.env`) instead of removing it.
+**Interpretation.** We would keep reranking **off** by default. On our questions it didn't make any answer more accurate or any citation better, and it made every answer slower, about 2.5 times on average. The time cost showed up in every question and every run. The one-question differences in correctness and sources could be chance, because answers vary from run to run and we graded only one run by hand. So we don't conclude that reranking hurts. We conclude that it didn't help here. Our questions each have one clearly matching slide, and the expected source was retrieved in every run without reranking. Reranking would matter more when many similar passages compete, such as broad questions that span several decks. That's why we kept it as a setting, off by default, instead of removing it.
 
 **Limits of this comparison:**
 - There are only 8 questions, and most have a single clear source.
@@ -199,7 +201,8 @@ Other limitations:
 
 | Tested | How |
 |---|---|
-| All 57 automated tests pass | `python -m pytest`, Python 3.11, Linux. The PowerPoint conversion test needs a LibreOffice install that can open PPTX files |
+| All automated tests pass (offline) | `python -m pytest`, Python 3.11. The PowerPoint conversion tests need a LibreOffice install that can open PPTX files, and the live service tests in `tests/test_services_live.py` are skipped unless `.env` points at the class services |
+| Class-service wire formats (issue #6) | The clients in `services.py` were run against the live endpoints: text embeddings (port 9002) return 2048-dim vectors; visual embeddings (port 9003, chat-style messages) return 2048-dim vectors in the same space — a text query "Vibe Coding on 'Prod'" scores **0.60** against the real Week 2 slide 33 meme image; the multimodal reranker (port 9004, separate text/image calls) scored the same meme image **0.749**, at or near the top for that query. See `tests/test_services_live.py`. |
 | All five course decks and the syllabus convert and load | Loaded in the app; slide images compared with the originals by eye |
 | Add, repeat upload, remove, ask, quiz, check and show answer | Clicked through in a browser (Chromium) in offline mode |
 | Light and dark mode are readable | Screenshots of every tab in both modes |
@@ -209,6 +212,8 @@ Other limitations:
 | Answer quality with the real chat model | Run 3 answers graded by hand ([eval/results/live-rerank-summary.md](eval/results/live-rerank-summary.md)) |
 | Quizzes with the real chat model (the current quiz code, before Quiz 2.0) | 3 quizzes (15 questions) checked by hand against the slides and syllabus. Every question was answerable and every key was correct. The answer key stayed fixed across regrading, and solutions stayed hidden until checked or shown ([eval/results/live-quiz-check.md](eval/results/live-quiz-check.md)) |
 | Materials on a Mac with the class services (issue #4) | Mac, Python 3.11, LibreOffice 26.8 from Homebrew. The repo has no automatic test runs (CI), so these results are from that machine. All five decks and the syllabus added (149 slides and pages); the same file and a renamed copy were both refused as duplicates; removing Week 2 deleted its 45 text and 42 image index entries and its files, and searches stopped returning it. All three searches ranked Week 2 slide 33 first for "Vibe Coding on Prod meme". |
+| A second reranking on/off run (PR #19) | Two runs measured before the answer fixes in PR #17 and with the document parser off: reranking off 8/8 then 7/8 correct, on 5/8 then 4/8, with the right source retrieved every time. The misses came from the answer bugs that PR #17 fixed, so the post-fix runs above are the ones we report. The conclusion is the same: keep reranking off by default. |
+| Document parser (port 9005) | Confirmed connected in PR #17's live runs: slide text includes OCR output (`[Text read from the image] … ONE DOES NOT SIMPLY VIBE CODE…` on Week 2 slide 33, from `dots.mocr`). Request format works against the class service. |
 
 | Not tested yet | Why |
 |---|---|

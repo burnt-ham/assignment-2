@@ -72,11 +72,14 @@ class Retriever:
         self.max_text = max_text
         self.max_images = max_images
 
-    def search(self, query: str, doc_ids: list[str] | None = None) -> RetrievalResult:
+    def search(self, query: str, doc_ids: list[str] | None = None, use_rerank: bool | None = None) -> RetrievalResult:
         warnings: list[str] = []
         k = self.candidates_per_index
         candidates: dict[str, Candidate] = {}
         ranked_lists: list[list[str]] = []
+        # Per-call override; None means "use this retriever's stored default" so
+        # the Ask tab can toggle without mutating shared state for the Quiz tab.
+        rerank_requested = self.use_rerank if use_rerank is None else use_rerank
 
         def add_text_hits(hits):
             keys = []
@@ -113,7 +116,7 @@ class Retriever:
         scores = {c.key: fused.get(c.key, 0.0) for c in order}
 
         reranked = False
-        if self.use_rerank and self.reranker is not None and order:
+        if rerank_requested and self.reranker is not None and order:
             try:
                 rerank_scores = self.reranker.rerank(query, order)
                 scores = {c.key: s for c, s in zip(order, rerank_scores)}
