@@ -8,9 +8,12 @@ from __future__ import annotations
 import html
 import logging
 import os
+import shutil
 from pathlib import Path
 
 import gradio as gr
+from gradio import processing_utils
+from gradio import utils as gradio_utils
 
 from course_assistant.assistant import CourseAssistant
 from course_assistant.config import redact
@@ -25,6 +28,26 @@ CSS = """
 .source-gallery img, .quiz-source img { background: #ffffff; border: 1px solid var(--border-color-primary); }
 .verified { color: var(--color-accent); font-weight: 600; }
 """
+
+
+def remove_document(library, doc_id: str) -> str:
+    """Remove a document, including Gradio's copies of its page images.
+
+    Gradio copies every image it displays into its own cache folder (named after
+    a hash of the file), so a removed slide could still be opened by its address.
+    Find those copies while the files still exist, then delete them as well.
+    """
+    doc = library.documents.get(doc_id)
+    cache = Path(gradio_utils.get_upload_folder())
+    copies = [
+        cache / processing_utils.hash_file(page.image_path)
+        for page in (doc.pages if doc else [])
+        if page.image_path and os.path.exists(page.image_path)
+    ]
+    message = library.remove(doc_id)
+    for folder in copies:
+        shutil.rmtree(folder, ignore_errors=True)  # Gradio makes a new copy if the same image is shown again
+    return message
 
 
 def build_app(assistant: CourseAssistant) -> gr.Blocks:
@@ -75,7 +98,7 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
     def remove_doc(doc_id):
         if not doc_id:
             return ("Choose a document to remove.", *refreshed_lists())
-        return (assistant.library.remove(doc_id), *refreshed_lists())
+        return (remove_document(assistant.library, doc_id), *refreshed_lists())
 
     # -- asking --------------------------------------------------------------
 
@@ -132,7 +155,7 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
         gr.Markdown("# Course Assistant\nAsk questions about your course materials, see the exact slides behind each answer, and take practice quizzes.")
 
         with gr.Tab("Materials"):
-            gr.Markdown(f"**Accepted files:** {SUPPORTED_DESCRIPTION} Uploading the same file twice won't duplicate it.")
+            gr.Markdown(f"**Accepted files:** {SUPPORTED_DESCRIPTION} Uploading the same file twice, or a re-saved copy of it, won't duplicate it.")
             uploader = gr.File(label="Add course files", file_count="multiple", file_types=sorted(SUPPORTED_TYPES))
             add_button = gr.Button("Add to library", variant="primary")
             add_status = gr.Markdown()

@@ -11,15 +11,20 @@ Supported formats:
 from __future__ import annotations
 
 import hashlib
+import io
 import os
 import re
 import shutil
 import subprocess
 import tempfile
+import warnings
+import zipfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from xml.etree import ElementTree
 
 import pymupdf
+from PIL import Image, ImageFilter
 
 PDF_TYPES = {".pdf"}
 OFFICE_TYPES = {".pptx", ".ppt", ".docx", ".doc"}
@@ -47,6 +52,7 @@ class Page:
     text: str
     title: str = ""
     image_path: str = ""  # empty for text and Markdown files
+    signature: str = ""  # image_signature() of the page image, to spot re-saved copies
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -58,6 +64,126 @@ def file_hash(path: str | Path) -> str:
         for block in iter(lambda: handle.read(1 << 20), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def image_signature(path: str | Path) -> str:
+    """A small fingerprint of how a page looks: its brightness on a 16x16 grid, as hex.
+
+    Re-saving or re-exporting a deck barely changes it (under 1/20 of the range in
+    any cell for the course decks), while a swapped picture or chart moves whole
+    cells, so it tells a re-saved copy from an edited one.
+    """
+    with Image.open(path) as image:
+        return image.convert("L").resize((16, 16), Image.BOX).tobytes().hex()
+
+
+GIF_MAX_SIDE = 1600
+
+
+def _detail(frame: Image.Image) -> float:
+    """How much is drawn in a frame: the average edge strength of a small greyscale copy."""
+    small = frame.convert("L")
+    small.thumbnail((256, 256))
+    edges = small.filter(ImageFilter.FIND_EDGES)
+    return sum(edges.getdata()) / (edges.width * edges.height)
+
+
+def most_detailed_frame(gif: Image.Image) -> Image.Image:
+    """Pick the frame with the most drawn on it (the earliest one wins ties).
+
+    Animations often start empty and build up a diagram (Week 5 slide 8 starts
+    as a blank beige box), so the first frame can carry nothing to search or describe.
+    """
+    best, best_detail = None, -1.0
+    for index in range(gif.n_frames):
+        gif.seek(index)
+        frame = gif.convert("RGB")
+        detail = _detail(frame)
+        if detail > best_detail:
+            best, best_detail = frame, detail
+    return best
+
+
+# An opening <a:rPr ...> (not a self-closing <a:rPr .../>) whose settings, before its
+# closing tag, include a click link. The settings can't reach past this run's own rPr.
+_LINKED_RUN = re.compile(
+    rb"<a:rPr\b([^>]*?)(?<!/)>((?:(?!</a:rPr>|<a:rPr\b).)*?)"
+    rb"<a:hlinkClick\b[^>]*?(?:/>|>(?:(?!</a:rPr>).)*?</a:hlinkClick>)"
+    rb"((?:(?!</a:rPr>|<a:rPr\b).)*?)</a:rPr>",
+    re.S,
+)
+_LINK_COLOUR = b'<a:solidFill><a:schemeClr val="hlink"/></a:solidFill>'
+
+
+def _plain_link(match: re.Match) -> bytes:
+    attrs, before, after = match.groups()
+    if b" u=" not in attrs:
+        attrs += b' u="sng"'  # keep the underline links are drawn with
+    children = before + after
+    if b"<a:solidFill>" not in children and b"<a:gradFill>" not in children:
+        # A fill goes first among the run's settings (after an outline, if there is one)
+        outline = re.match(rb"<a:ln\b.*?(?:/>|</a:ln>)", children, re.S)
+        cut = outline.end() if outline else 0
+        children = children[:cut] + _LINK_COLOUR + children[cut:]
+    return b"<a:rPr" + attrs + b">" + children + b"</a:rPr>"
+
+
+def unlink_text(slide_xml: bytes) -> tuple[bytes, int]:
+    """Turn linked text into plain text drawn like a link (theme link colour, underlined).
+
+    LibreOffice treats linked text as one unbreakable piece, so a link too long
+    for its line wraps mid-word ("Artificial Analysis I / ntelligence Index" on
+    Week 2 slide 7), and the split word also reaches the searchable text.
+    Plain text wraps at spaces, as in PowerPoint. Slide images can't be clicked anyway.
+    """
+    changed, count = _LINKED_RUN.subn(_plain_link, slide_xml)
+    if count:
+        try:
+            ElementTree.fromstring(changed)
+        except ElementTree.ParseError:
+            return slide_xml, 0  # never hand LibreOffice a broken slide; keep the original
+    return changed, count
+
+
+def prepare_pptx(path: Path, out_dir: Path) -> tuple[Path, int]:
+    """Copy a .pptx with the fixes LibreOffice needs to draw it like PowerPoint.
+
+    - Each animated GIF becomes a still of its most detailed frame. LibreOffice
+      draws some large animated GIFs as an empty box (Week 2 slide 37), and the
+      most detailed frame gives the image search and the vision model something
+      to work with when an animation starts blank. Keeping the same file name
+      keeps the slide's links to it working.
+    - Linked text becomes plain text styled as a link (see unlink_text).
+
+    Returns the prepared copy and how many GIFs were frozen.
+    """
+    try:
+        source = zipfile.ZipFile(path)
+    except zipfile.BadZipFile:
+        return path, 0  # not a zip; let LibreOffice report the problem
+    out_dir.mkdir(parents=True, exist_ok=True)
+    frozen_path = out_dir / path.name
+    frozen = 0
+    with source, zipfile.ZipFile(frozen_path, "w", zipfile.ZIP_DEFLATED) as target:
+        for item in source.infolist():
+            data = source.read(item)
+            if re.fullmatch(r"ppt/slides/slide\d+\.xml", item.filename):
+                data, _ = unlink_text(data)
+            elif item.filename.startswith("ppt/media/") and item.filename.lower().endswith(".gif"):
+                try:
+                    with Image.open(io.BytesIO(data)) as gif, warnings.catch_warnings():
+                        warnings.simplefilter("ignore")  # palette-transparency notices are harmless
+                        if getattr(gif, "n_frames", 1) > 1:
+                            frame = most_detailed_frame(gif)
+                            frame.thumbnail((GIF_MAX_SIDE, GIF_MAX_SIDE))
+                            buffer = io.BytesIO()
+                            frame.save(buffer, format="GIF")
+                            data = buffer.getvalue()
+                            frozen += 1
+                except Exception:  # Pillow raises several error types for unusual files
+                    pass  # unreadable image: leave it for LibreOffice
+            target.writestr(item, data)
+    return frozen_path, frozen
 
 
 def convert_to_pdf(path: Path, out_dir: Path, soffice: str = "soffice", timeout: int = 300) -> Path:
@@ -142,7 +268,16 @@ def read_pdf(pdf_path: Path, image_dir: Path, label: str = "page") -> list[Page]
             text = clean_text(page.get_text())
             image_path = image_dir / f"{label}-{index:03d}.png"
             page.get_pixmap(dpi=RENDER_DPI).save(image_path)
-            pages.append(Page(number=index, label=label, text=text, title=_first_line(text), image_path=str(image_path)))
+            pages.append(
+                Page(
+                    number=index,
+                    label=label,
+                    text=text,
+                    title=_first_line(text),
+                    image_path=str(image_path),
+                    signature=image_signature(image_path),
+                )
+            )
     if not pages:
         raise IngestError(f"{pdf_path.name} has no pages.")
     for page, text in zip(pages, drop_repeated_lines([p.text for p in pages])):
@@ -174,12 +309,14 @@ def read_text(path: Path) -> list[Page]:
 
 
 def _find_soffice() -> str:
-    """Find soffice executable, trying common Windows paths if not in PATH."""
+    """Find soffice executable, trying the usual Windows and Mac install folders if not in PATH."""
     import shutil
     # On Windows, soffice.com is the headless entry point; .exe can hang
     for candidate in [
         "C:/Program Files/LibreOffice/program/soffice.com",
         "C:/Program Files (x86)/LibreOffice/program/soffice.com",
+        # Mac installs from libreoffice.org don't add soffice to PATH (Homebrew does)
+        "/Applications/LibreOffice.app/Contents/MacOS/soffice",
     ]:
         if os.path.isfile(candidate):
             return candidate
@@ -205,6 +342,12 @@ def read_document(path: str | Path, work_dir: Path, soffice: str | None = None) 
     image_dir = work_dir / "pages"
     if suffix in PDF_TYPES:
         return read_pdf(path, image_dir, label="page")
-    pdf = convert_to_pdf(path, work_dir / "converted", soffice=soffice)
+    prepared = work_dir / "prepared"
+    if suffix == ".pptx":
+        path, _ = prepare_pptx(path, prepared)
+    try:
+        pdf = convert_to_pdf(path, work_dir / "converted", soffice=soffice)
+    finally:
+        shutil.rmtree(prepared, ignore_errors=True)  # the prepared copy is only needed for conversion
     label = "slide" if suffix in {".pptx", ".ppt"} else "page"
     return read_pdf(pdf, image_dir, label=label)
