@@ -21,6 +21,7 @@ import warnings
 import zipfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from xml.etree import ElementTree
 
 import pymupdf
 from PIL import Image, ImageFilter
@@ -103,13 +104,58 @@ def most_detailed_frame(gif: Image.Image) -> Image.Image:
     return best
 
 
-def freeze_animated_gifs(path: Path, out_dir: Path) -> tuple[Path, int]:
-    """Copy a .pptx with each animated GIF swapped for a still of its most detailed frame.
+# An opening <a:rPr ...> (not a self-closing <a:rPr .../>) whose settings, before its
+# closing tag, include a click link. The settings can't reach past this run's own rPr.
+_LINKED_RUN = re.compile(
+    rb"<a:rPr\b([^>]*?)(?<!/)>((?:(?!</a:rPr>|<a:rPr\b).)*?)"
+    rb"<a:hlinkClick\b[^>]*?(?:/>|>(?:(?!</a:rPr>).)*?</a:hlinkClick>)"
+    rb"((?:(?!</a:rPr>|<a:rPr\b).)*?)</a:rPr>",
+    re.S,
+)
+_LINK_COLOUR = b'<a:solidFill><a:schemeClr val="hlink"/></a:solidFill>'
 
-    LibreOffice draws some large animated GIFs as an empty box (Week 2 slide 37).
-    A one-frame GIF under the same name keeps the slide's links working, and
-    choosing the most detailed frame gives the image search and the vision model
-    something to work with when an animation starts blank.
+
+def _plain_link(match: re.Match) -> bytes:
+    attrs, before, after = match.groups()
+    if b" u=" not in attrs:
+        attrs += b' u="sng"'  # keep the underline links are drawn with
+    children = before + after
+    if b"<a:solidFill>" not in children and b"<a:gradFill>" not in children:
+        # A fill goes first among the run's settings (after an outline, if there is one)
+        outline = re.match(rb"<a:ln\b.*?(?:/>|</a:ln>)", children, re.S)
+        cut = outline.end() if outline else 0
+        children = children[:cut] + _LINK_COLOUR + children[cut:]
+    return b"<a:rPr" + attrs + b">" + children + b"</a:rPr>"
+
+
+def unlink_text(slide_xml: bytes) -> tuple[bytes, int]:
+    """Turn linked text into plain text drawn like a link (theme link colour, underlined).
+
+    LibreOffice treats linked text as one unbreakable piece, so a link too long
+    for its line wraps mid-word ("Artificial Analysis I / ntelligence Index" on
+    Week 2 slide 7), and the split word also reaches the searchable text.
+    Plain text wraps at spaces, as in PowerPoint. Slide images can't be clicked anyway.
+    """
+    changed, count = _LINKED_RUN.subn(_plain_link, slide_xml)
+    if count:
+        try:
+            ElementTree.fromstring(changed)
+        except ElementTree.ParseError:
+            return slide_xml, 0  # never hand LibreOffice a broken slide; keep the original
+    return changed, count
+
+
+def prepare_pptx(path: Path, out_dir: Path) -> tuple[Path, int]:
+    """Copy a .pptx with the fixes LibreOffice needs to draw it like PowerPoint.
+
+    - Each animated GIF becomes a still of its most detailed frame. LibreOffice
+      draws some large animated GIFs as an empty box (Week 2 slide 37), and the
+      most detailed frame gives the image search and the vision model something
+      to work with when an animation starts blank. Keeping the same file name
+      keeps the slide's links to it working.
+    - Linked text becomes plain text styled as a link (see unlink_text).
+
+    Returns the prepared copy and how many GIFs were frozen.
     """
     try:
         source = zipfile.ZipFile(path)
@@ -121,7 +167,9 @@ def freeze_animated_gifs(path: Path, out_dir: Path) -> tuple[Path, int]:
     with source, zipfile.ZipFile(frozen_path, "w", zipfile.ZIP_DEFLATED) as target:
         for item in source.infolist():
             data = source.read(item)
-            if item.filename.startswith("ppt/media/") and item.filename.lower().endswith(".gif"):
+            if re.fullmatch(r"ppt/slides/slide\d+\.xml", item.filename):
+                data, _ = unlink_text(data)
+            elif item.filename.startswith("ppt/media/") and item.filename.lower().endswith(".gif"):
                 try:
                     with Image.open(io.BytesIO(data)) as gif, warnings.catch_warnings():
                         warnings.simplefilter("ignore")  # palette-transparency notices are harmless
@@ -296,7 +344,7 @@ def read_document(path: str | Path, work_dir: Path, soffice: str | None = None) 
         return read_pdf(path, image_dir, label="page")
     prepared = work_dir / "prepared"
     if suffix == ".pptx":
-        path, _ = freeze_animated_gifs(path, prepared)
+        path, _ = prepare_pptx(path, prepared)
     try:
         pdf = convert_to_pdf(path, work_dir / "converted", soffice=soffice)
     finally:

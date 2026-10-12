@@ -88,6 +88,8 @@ Speaker notes in PowerPoint files are not read. Repeated headers and footers (li
 
 **Animated GIFs** in PowerPoint files are replaced with a still image before conversion. LibreOffice drew some large GIFs as an empty box, so the app keeps the GIF's most detailed frame instead (see Limitations). Videos show their preview image.
 
+**Links in slide text** are turned into plain text drawn the same way (link colour, underlined) before conversion. LibreOffice treats linked text as one unbreakable piece, so a long link wrapped mid-word: Week 2 slide 7 showed "Artificial Analysis I / ntelligence Index", and the split word also reached the searchable text. Slide images can't be clicked, so nothing is lost. Found by a manual spot check against the original slides.
+
 **Checking the conversions:** all 42 Week 2 slides were compared, pixel by pixel, with a PDF exported from PowerPoint itself. 41 matched closely; the 42nd (slide 37, a GIF) was blank until the fix above. Slide 33, the meme, matches the original. All 12 GIF slides across the decks were then checked by eye.
 
 ## How it works
