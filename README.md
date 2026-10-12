@@ -84,6 +84,8 @@ If nothing in the materials supports an answer, the app says so instead of guess
 
 Speaker notes in PowerPoint files are not read. Repeated headers and footers (like "Syllabus (Subject to Change) 3") are removed from page text so they don't clutter search results.
 
+**Duplicates** are caught two ways. An identical file is refused at once by its SHA-256 hash. A copy that was re-saved or re-exported (different bytes, same slides) is refused after it's read: every page must have the same text, and its image must look the same on a 16 x 16 brightness grid. The decks in `materials/` were re-saved when the class key was removed, so they differ byte-for-byte from the Canvas downloads, and the second check is what catches those. A deck with the same text but a changed picture or chart is still added as new.
+
 **Animated GIFs** in PowerPoint files are replaced with a still image before conversion. LibreOffice drew some large GIFs as an empty box, so the app keeps the GIF's most detailed frame instead (see Limitations). Videos show their preview image.
 
 **Checking the conversions:** all 42 Week 2 slides were compared, pixel by pixel, with a PDF exported from PowerPoint itself. 41 matched closely; the 42nd (slide 37, a GIF) was blank until the fix above. Slide 33, the meme, matches the original. All 12 GIF slides across the decks were then checked by eye.
@@ -94,7 +96,7 @@ Speaker notes in PowerPoint files are not read. Repeated headers and footers (li
 
 | Step | What happens | Code | Runs on |
 |---|---|---|---|
-| Document preparation | Upload, skip duplicates (file fingerprint), convert Office files with LibreOffice, extract text and render page images with PyMuPDF, split text into chunks that keep the document and slide number | `course_assistant/ingest.py`, `library.py` | Your computer |
+| Document preparation | Upload, skip duplicates (same file bytes, or the same pages in a re-saved copy), convert Office files with LibreOffice, extract text and render page images with PyMuPDF, split text into chunks that keep the document and slide number | `course_assistant/ingest.py`, `library.py` | Your computer |
 | Indexes | Keyword index (bm25s), text vector index and a separate image vector index (chromadb), all saved in `data/` | `library.py` | Your computer |
 | Embeddings | Text chunks go to the text embedding model; page images go to the visual embedding model | `services.py` | Class services |
 | Retrieval | Search all three indexes, combine the results with reciprocal rank fusion, then rerank with the multimodal reranker | `retrieval.py` | Your computer + class reranker |

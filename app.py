@@ -132,7 +132,7 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
         gr.Markdown("# Course Assistant\nAsk questions about your course materials, see the exact slides behind each answer, and take practice quizzes.")
 
         with gr.Tab("Materials"):
-            gr.Markdown(f"**Accepted files:** {SUPPORTED_DESCRIPTION} Uploading the same file twice won't duplicate it.")
+            gr.Markdown(f"**Accepted files:** {SUPPORTED_DESCRIPTION} Uploading the same file twice, or a re-saved copy of it, won't duplicate it.")
             uploader = gr.File(label="Add course files", file_count="multiple", file_types=sorted(SUPPORTED_TYPES))
             add_button = gr.Button("Add to library", variant="primary")
             add_status = gr.Markdown()

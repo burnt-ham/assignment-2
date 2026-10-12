@@ -51,6 +51,7 @@ class Page:
     text: str
     title: str = ""
     image_path: str = ""  # empty for text and Markdown files
+    signature: str = ""  # image_signature() of the page image, to spot re-saved copies
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -62,6 +63,17 @@ def file_hash(path: str | Path) -> str:
         for block in iter(lambda: handle.read(1 << 20), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def image_signature(path: str | Path) -> str:
+    """A small fingerprint of how a page looks: its brightness on a 16x16 grid, as hex.
+
+    Re-saving or re-exporting a deck barely changes it (under 1/20 of the range in
+    any cell for the course decks), while a swapped picture or chart moves whole
+    cells, so it tells a re-saved copy from an edited one.
+    """
+    with Image.open(path) as image:
+        return image.convert("L").resize((16, 16), Image.BOX).tobytes().hex()
 
 
 GIF_MAX_SIDE = 1600
@@ -208,7 +220,16 @@ def read_pdf(pdf_path: Path, image_dir: Path, label: str = "page") -> list[Page]
             text = clean_text(page.get_text())
             image_path = image_dir / f"{label}-{index:03d}.png"
             page.get_pixmap(dpi=RENDER_DPI).save(image_path)
-            pages.append(Page(number=index, label=label, text=text, title=_first_line(text), image_path=str(image_path)))
+            pages.append(
+                Page(
+                    number=index,
+                    label=label,
+                    text=text,
+                    title=_first_line(text),
+                    image_path=str(image_path),
+                    signature=image_signature(image_path),
+                )
+            )
     if not pages:
         raise IngestError(f"{pdf_path.name} has no pages.")
     for page, text in zip(pages, drop_repeated_lines([p.text for p in pages])):
