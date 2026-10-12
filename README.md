@@ -27,8 +27,10 @@ You need:
 - **Python 3.11 or newer**: [python.org/downloads](https://www.python.org/downloads/)
 - **LibreOffice** (free), to read PowerPoint and Word files: [libreoffice.org/download](https://www.libreoffice.org/download/)
   - On a Mac, the easiest install is [Homebrew](https://brew.sh): `brew install --cask libreoffice`. Installing from the website works too: the app looks in `/Applications/LibreOffice.app` automatically, so you don't need to set `SOFFICE_PATH`.
-  - On Windows it's usually `C:\Program Files\LibreOffice\program\soffice.exe`.
-  - Without LibreOffice, PDF, TXT and Markdown still work. Export decks to PDF in PowerPoint and upload the PDF instead.
+  - On Windows, install from the website. The app finds it in `C:\Program Files\LibreOffice` automatically.
+  - Installed somewhere else? Set `SOFFICE_PATH` in `.env` (step 3) to the full path of `soffice`.
+  - Tested with LibreOffice 26.8 on a Mac.
+  - Without LibreOffice, PDF, TXT and Markdown still work. Uploading a PowerPoint or Word file shows "LibreOffice is needed to read PowerPoint and Word files, but it isn't installed." Install it, or export the file to PDF (in PowerPoint: **File > Export > PDF**) and upload the PDF instead.
 
 ### 2. Get the code and install the Python packages
 
@@ -75,12 +77,15 @@ If nothing in the materials supports an answer, the app says so instead of guess
 
 ### Supported files
 
-| Type | How it's read |
-|---|---|
-| PDF (.pdf) | Text from each page, plus an image of each page |
-| PowerPoint (.pptx, .ppt) | Converted to PDF with LibreOffice, then read like a PDF, one image per slide |
-| Word (.docx, .doc) | Converted to PDF with LibreOffice, then read like a PDF |
-| Text (.txt), Markdown (.md) | Split into sections at Markdown headings; no images |
+| Type | How it's read | Needs LibreOffice |
+|---|---|---|
+| PDF (.pdf) | Text from each page, plus an image of each page | No |
+| PowerPoint (.pptx, .ppt) | Converted to PDF with LibreOffice, then read like a PDF, one image per slide | Yes |
+| Word (.docx, .doc) | Converted to PDF with LibreOffice, then read like a PDF, one image per page | Yes |
+| Markdown (.md) | Split into sections at its headings (`#`, `##`, …); no images | No |
+| Text (.txt) | Read as one section; no images | No |
+
+The app lists these under **Accepted files** on the Materials tab, and refuses any other file with a message naming the supported types. Each format above was checked by adding a sample file (Mac, LibreOffice 26.8). Other files need converting first: Keynote and Google Slides decks can be exported to PowerPoint or PDF, and images or screenshots can be pasted into a document and saved as PDF.
 
 Speaker notes in PowerPoint files are not read. Repeated headers and footers (like "Syllabus (Subject to Change) 3") are removed from page text so they don't clutter search results.
 
