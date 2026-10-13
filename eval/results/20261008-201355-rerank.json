@@ -1,0 +1,337 @@
+{
+  "meta": {
+    "comparison": "rerank",
+    "services": [
+      [
+        "Answers and quizzes",
+        "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+        true
+      ],
+      [
+        "Text search by meaning",
+        "nvidia/Nemotron-3-Embed-1B-BF16 (text embedding)",
+        true
+      ],
+      [
+        "Image search",
+        "Qwen/Qwen3-VL-Embedding-2B (visual embedding)",
+        true
+      ],
+      [
+        "Reranking",
+        "Qwen/Qwen3-VL-Reranker-2B (reranker)",
+        true
+      ],
+      [
+        "Reading text inside images",
+        "dots.mocr (chat model)",
+        true
+      ]
+    ],
+    "documents": [
+      "syllabus-fall-2026.pdf",
+      "Week 2 - LLM Fundamentals.pptx",
+      "Week 3 - Prompt Engineering.pptx",
+      "Week 4 - Serving and Debugging.pptx",
+      "Week 5 - Context Engineering and RAG.pptx",
+      "Week 6 - Multimodal Generative AI.pptx"
+    ]
+  },
+  "rows": [
+    {
+      "setting": "rerank_on",
+      "id": "Q1",
+      "type": "text",
+      "question": "When are the professor's office hours?",
+      "expected_answer": "Tuesdays and Fridays, 11am to 12pm, via Zoom, and by appointment (syllabus page 1).",
+      "answer": "The professor's office hours are Tuesdays and Fridays from 11am to 12pm via Zoom. Appointments can also be scheduled at other times based on availability.",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.1"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 5.43,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q2",
+      "type": "text",
+      "question": "How much of the final grade is the final project worth?",
+      "expected_answer": "45% of the final grade (syllabus page 2, grading table; restated on page 3).",
+      "answer": "The final project is worth 45% of the final grade.",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.3",
+        "syllabus-fall-2026.pdf, p.2",
+        "syllabus-fall-2026.pdf, p.3",
+        "syllabus-fall-2026.pdf, p.7"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 5.52,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q3",
+      "type": "text",
+      "question": "What is the penalty for turning in an assignment late?",
+      "expected_answer": "A 10% grade penalty for every calendar day late (e.g. 80/100 one day late becomes 72/100), and assignments are not accepted more than five days late (syllabus pages 2-3).",
+      "answer": "Not submitting assignments on time will result in a 10% grade penalty for every calendar day the assignment is late. However, assignments may not be turned in more than five days late, and the assignment with the lowest score will be dropped from the final grade.",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.2",
+        "syllabus-fall-2026.pdf, p.3"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 5.49,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q4",
+      "type": "text",
+      "question": "What is KV caching, and what is its tradeoff?",
+      "expected_answer": "A key-value (KV) cache lets decoding skip reprocessing earlier tokens when generating new ones, so responses are faster; the tradeoff is higher memory use (Week 2, slide 11).",
+      "answer": "KV caching, or key-value caching, is a technique used during LLM inference to speed up decoding. It works by storing the key and value vectors from previous tokens so that the model does not need to reprocess them when generating new tokens, which reduces the Time To First Token (TTFT). The tradeoff for this performance improvement is increased memory demands.",
+      "found": true,
+      "cited_sources": [
+        "Week 2 - LLM Fundamentals.pptx, p.11"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 7.14,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q5",
+      "type": "text",
+      "question": "In a hybrid RAG pipeline, what does reranking do?",
+      "expected_answer": "Reranking compares the candidate chunks found by keyword and vector search to the original question and prioritizes which chunks are given to the LLM as context (Week 5, slide 18).",
+      "answer": "In a hybrid RAG pipeline, reranking compares the candidate chunks to the original question and prioritizes which chunks are supplied to the LLM as context.",
+      "found": true,
+      "cited_sources": [
+        "Week 5 - Context Engineering and RAG.pptx, p.18",
+        "Week 5 - Context Engineering and RAG.pptx, p.14"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 4.36,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q6",
+      "type": "visual",
+      "question": "Find the meme about Vibe Coding on \"Prod\" in the Week 2 slides. What do its image and text show?",
+      "expected_answer": "Week 2, slide 33, titled 'Vibe Coding on \u201cProd\u201d'. The image is the Lord of the Rings 'One does not simply' meme (Boromir) with the caption 'One does not simply vibe code a production-grade enterprise app': vibe coding is fine for prototypes but not enough for production software.",
+      "answer": "The meme about Vibe Coding on 'Prod' is found on slide 33. It uses the popular 'One Does Not Simply' meme format. The image shows the character Boromir from Lord of the Rings with his arms outstretched. The text overlaid on the image reads: 'ONE DOES NOT SIMPLY VIBE CODE A PRODUCTION-GRADE ENTERPRISE APP'.",
+      "found": true,
+      "cited_sources": [
+        "Week 2 - LLM Fundamentals.pptx, p.33"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 4.99,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q7",
+      "type": "visual",
+      "question": "Describe the diagram of the hybrid RAG pipeline with reranking from the Week 5 slides.",
+      "expected_answer": "Week 5, slide 18. The question goes to keyword search and, through an embedding model, to vector search (the retrieval stage); both produce candidate chunks, which a reranker orders into ranked chunks with source details (the reranking stage).",
+      "answer": "The diagram of the hybrid RAG pipeline with reranking (from slide 18) illustrates a process that begins with a user's \"Question.\" This question is processed through two parallel retrieval methods, both color-coded in blue to indicate the \"Retrieval\" phase: 1) \"Keyword Search\" and 2) an \"Embedding Model\" followed by \"Vector Search.\" The outputs from both methods converge into \"Candidate Chunks.\" These chunks then enter the \"Reranking\" phase (color-coded in orange), where a \"Reranker\" processes them. The final output of this pipeline is \"Ranked Chunks With Source Details.\"",
+      "found": true,
+      "cited_sources": [
+        "Week 5 - Context Engineering and RAG.pptx, p.18"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 8.12,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_on",
+      "id": "Q8",
+      "type": "unanswerable",
+      "question": "How much does a parking permit for the Koelbel building cost?",
+      "expected_answer": "Not in the materials: the app should say it can't answer, with no invented price or citation.",
+      "answer": "The provided materials do not contain information about the cost of a parking permit for the Koelbel building.",
+      "found": false,
+      "cited_sources": [],
+      "expected_source_retrieved": null,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 6.44,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q1",
+      "type": "text",
+      "question": "When are the professor's office hours?",
+      "expected_answer": "Tuesdays and Fridays, 11am to 12pm, via Zoom, and by appointment (syllabus page 1).",
+      "answer": "The professor's office hours are Tuesdays and Fridays from 11am to 12pm via Zoom, and by appointment.",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.1"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 2.06,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q2",
+      "type": "text",
+      "question": "How much of the final grade is the final project worth?",
+      "expected_answer": "45% of the final grade (syllabus page 2, grading table; restated on page 3).",
+      "answer": "The final project is worth 45% of the final grade.",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.2",
+        "syllabus-fall-2026.pdf, p.3",
+        "syllabus-fall-2026.pdf, p.2",
+        "syllabus-fall-2026.pdf, p.3"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 3.15,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q3",
+      "type": "text",
+      "question": "What is the penalty for turning in an assignment late?",
+      "expected_answer": "A 10% grade penalty for every calendar day late (e.g. 80/100 one day late becomes 72/100), and assignments are not accepted more than five days late (syllabus pages 2-3).",
+      "answer": "Not submitting assignments on time will result in a 10% grade penalty for every calendar day the assignment is late. Additionally, assignments may not be turned in more than five days late.",
+      "found": true,
+      "cited_sources": [
+        "syllabus-fall-2026.pdf, p.2",
+        "syllabus-fall-2026.pdf, p.3"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 1.82,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q4",
+      "type": "text",
+      "question": "What is KV caching, and what is its tradeoff?",
+      "expected_answer": "A key-value (KV) cache lets decoding skip reprocessing earlier tokens when generating new ones, so responses are faster; the tradeoff is higher memory use (Week 2, slide 11).",
+      "answer": "KV caching, or key-value caching, is a technique used during LLM inference to speed up decoding. It works by storing the key and value states from previous tokens so the model does not need to reprocess them when generating new output tokens. This reduces the Time to First Token (TTFT). The tradeoff of using KV caching is increased memory demands.",
+      "found": true,
+      "cited_sources": [
+        "Week 2 - LLM Fundamentals.pptx, p.11"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 1.92,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q5",
+      "type": "text",
+      "question": "In a hybrid RAG pipeline, what does reranking do?",
+      "expected_answer": "Reranking compares the candidate chunks found by keyword and vector search to the original question and prioritizes which chunks are given to the LLM as context (Week 5, slide 18).",
+      "answer": "In a hybrid RAG pipeline, reranking compares the candidate chunks retrieved from keyword and vector search to the original question and prioritizes which chunks are supplied to the LLM as context.",
+      "found": true,
+      "cited_sources": [
+        "Week 5 - Context Engineering and RAG.pptx, p.18",
+        "Week 5 - Context Engineering and RAG.pptx, p.18"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 1.71,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q6",
+      "type": "visual",
+      "question": "Find the meme about Vibe Coding on \"Prod\" in the Week 2 slides. What do its image and text show?",
+      "expected_answer": "Week 2, slide 33, titled 'Vibe Coding on \u201cProd\u201d'. The image is the Lord of the Rings 'One does not simply' meme (Boromir) with the caption 'One does not simply vibe code a production-grade enterprise app': vibe coding is fine for prototypes but not enough for production software.",
+      "answer": "The meme about Vibe Coding on 'Prod' is found on slide 33 of the Week 2 slides. It uses the 'One Does Not Simply' meme format, which features a picture of the character Boromir from The Lord of the Rings. The text on the meme reads: 'ONE DOES NOT SIMPLY VIBE CODE A PRODUCTION-GRADE ENTERPRISE APP'.",
+      "found": true,
+      "cited_sources": [
+        "Week 2 - LLM Fundamentals.pptx, p.33"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 1.8,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q7",
+      "type": "visual",
+      "question": "Describe the diagram of the hybrid RAG pipeline with reranking from the Week 5 slides.",
+      "expected_answer": "Week 5, slide 18. The question goes to keyword search and, through an embedding model, to vector search (the retrieval stage); both produce candidate chunks, which a reranker orders into ranked chunks with source details (the reranking stage).",
+      "answer": "The diagram of the hybrid RAG pipeline with reranking illustrates a process that begins with a user's \"Question\". This question is processed through two parallel retrieval methods: \"Keyword Search\" and an \"Embedding Model\" followed by \"Vector Search\". Both methods feed into a common pool of \"Candidate Chunks\". These candidates then undergo a \"Reranking\" phase, where they are compared to the original question to prioritize relevance. The final output of this pipeline is \"Ranked Chunks With Source Details\", which are then supplied to the LLM as context to answer the user's question. The diagram uses a color-coded legend to distinguish between the \"Retrieval\" phase (blue) and the \"Reranking\" phase (orange).",
+      "found": true,
+      "cited_sources": [
+        "Week 5 - Context Engineering and RAG.pptx, p.5",
+        "Week 5 - Context Engineering and RAG.pptx, p.18"
+      ],
+      "expected_source_retrieved": true,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 2.79,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    },
+    {
+      "setting": "rerank_off",
+      "id": "Q8",
+      "type": "unanswerable",
+      "question": "How much does a parking permit for the Koelbel building cost?",
+      "expected_answer": "Not in the materials: the app should say it can't answer, with no invented price or citation.",
+      "answer": "The provided materials do not contain information about the cost of a parking permit for the Koelbel building.",
+      "found": false,
+      "cited_sources": [],
+      "expected_source_retrieved": null,
+      "sources_support_answer": true,
+      "auto_correct": true,
+      "seconds": 1.33,
+      "model": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit (chat model)",
+      "warnings": []
+    }
+  ]
+}

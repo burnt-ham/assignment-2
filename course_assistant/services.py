@@ -66,7 +66,9 @@ class Reranker(Protocol):
 class ChatModel(Protocol):
     name: str
 
-    def complete(self, system: str, user: str, image_paths: list[str] | None = None, max_tokens: int = 2000) -> str: ...
+    def complete(
+        self, system: str, user: str, image_paths: list[str] | None = None, max_tokens: int = 2000, after_images: str = ""
+    ) -> str: ...
 
 
 # ---------------------------------------------------------------------------
@@ -178,16 +180,28 @@ class OpenAIChatModel(_HttpService):
 
     label = "chat model"
 
-    def complete(self, system: str, user: str, image_paths: list[str] | None = None, max_tokens: int = 2000) -> str:
+    def __init__(self, config: ServiceConfig, timeout: float = 120.0, thinking: bool = True):
+        super().__init__(config, timeout)
+        # The class chat model (Qwen3) reasons before answering. With long evidence it can
+        # spend the whole token budget reasoning and return no answer, so it can be turned off.
+        self.thinking = thinking
+
+    def complete(
+        self, system: str, user: str, image_paths: list[str] | None = None, max_tokens: int = 2000, after_images: str = ""
+    ) -> str:
         content: list[dict] = [{"type": "text", "text": user}]
         for path in image_paths or []:
             content.append({"type": "image_url", "image_url": {"url": image_data_url(path)}})
+        if after_images:
+            content.append({"type": "text", "text": after_images})
         payload = {
             "model": self.config.model,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}],
             "max_tokens": max_tokens,
             "temperature": 0.2,
         }
+        if not self.thinking:
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
         data = self._post("/chat/completions", payload)
         try:
             return data["choices"][0]["message"]["content"] or ""

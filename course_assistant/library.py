@@ -11,7 +11,10 @@ Removing a document deletes its files, chunks and index entries.
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import stat
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
@@ -26,6 +29,24 @@ from .services import ImageEmbedder, ServiceError, TextEmbedder
 
 CHUNK_SIZE = 700
 CHUNK_OVERLAP = 100
+IMAGE_TEXT_MARKER = "\n[Text read from the image]\n"
+SIGNATURE_TOLERANCE = 32  # of 255 per grid cell; re-saved course decks differ by 13 at most
+
+
+def _remove_tree(path: Path, ignore_errors: bool = False) -> None:
+    """Delete a folder, including read-only parts (OneDrive marks new folders read-only on Windows)."""
+
+    def clear_read_only(func, target, _error):
+        os.chmod(target, stat.S_IWRITE)
+        func(target)
+
+    # Python 3.12 renamed the error hook; the project still supports 3.11
+    hook = {"onexc": clear_read_only} if sys.version_info >= (3, 12) else {"onerror": clear_read_only}
+    try:
+        shutil.rmtree(path, **hook)
+    except OSError:
+        if not ignore_errors:
+            raise
 
 
 @dataclass
@@ -84,6 +105,36 @@ class Document:
             pages=[Page(**p) for p in data["pages"]],
             chunks=[Chunk(**c) for c in data["chunks"]],
         )
+
+
+def _own_text(page: Page) -> str:
+    """The page's own text with spacing normalized, leaving out text the parser read from images."""
+    return " ".join(page.text.split(IMAGE_TEXT_MARKER.strip())[0].split())
+
+
+def _largest_change(a: str, b: str) -> int:
+    """The biggest brightness difference between two image signatures, over all grid cells."""
+    return max(abs(x - y) for x, y in zip(bytes.fromhex(a), bytes.fromhex(b)))
+
+
+def same_content(new: list[Page], old: list[Page]) -> bool:
+    """True when two files hold the same pages: same text, and page images that look alike.
+
+    Catches a deck that was re-saved or re-exported, so its bytes (and file hash)
+    changed while every slide stayed the same.
+    """
+    if not new or len(new) != len(old):
+        return False
+    pairs = list(zip(new, old))
+    compared_images = all(a.signature and b.signature for a, b in pairs)
+    if not compared_images and not any(_own_text(a) for a, _ in pairs):
+        return False  # nothing to compare: picture-only pages without image fingerprints
+    for a, b in pairs:
+        if a.label != b.label or _own_text(a) != _own_text(b):
+            return False
+        if a.signature and b.signature and _largest_change(a.signature, b.signature) > SIGNATURE_TOLERANCE:
+            return False
+    return True
 
 
 @dataclass
@@ -213,12 +264,21 @@ class Library:
             doc_id = digest[:12]
             doc_dir = self.docs_dir / doc_id
             if doc_dir.exists():
-                shutil.rmtree(doc_dir)
+                _remove_tree(doc_dir)
             doc_dir.mkdir(parents=True)
             stored = doc_dir / f"original{path.suffix.lower()}"
             shutil.copyfile(path, stored)
             try:
                 pages = read_document(stored, doc_dir, soffice=self.soffice)
+                twin = next((d for d in self.documents.values() if same_content(pages, d.pages)), None)
+                if twin:
+                    _remove_tree(doc_dir, ignore_errors=True)
+                    return AddResult(
+                        twin,
+                        False,
+                        f"{name} is already in the library (as {twin.name}). The file isn't byte-for-byte "
+                        f"identical, but every {twin.page_label} matches, so it wasn't added again.",
+                    )
                 notes = self._read_image_text(pages)
                 doc = Document(
                     doc_id=doc_id,
@@ -231,7 +291,7 @@ class Library:
                 doc.chunks = chunk_pages(doc_id, name, pages)
                 self._index_document(doc)
             except (IngestError, ServiceError):
-                shutil.rmtree(doc_dir, ignore_errors=True)
+                _remove_tree(doc_dir, ignore_errors=True)
                 self._delete_from_indexes(doc_id)
                 raise
             self.documents[doc_id] = doc
@@ -247,7 +307,7 @@ class Library:
             if doc is None:
                 return "That document isn't in the library."
             self._delete_from_indexes(doc_id)
-            shutil.rmtree(self.docs_dir / doc_id, ignore_errors=True)
+            _remove_tree(self.docs_dir / doc_id, ignore_errors=True)
             self._save()
             self._rebuild_keyword_index()
             return f"Removed {doc.name} and everything searchable from it."
@@ -264,7 +324,7 @@ class Library:
                 except ServiceError as exc:
                     return [f"Text inside images wasn't read ({exc})."]
                 if extra:
-                    page.text = (page.text + "\n[Text read from the image]\n" + extra).strip()
+                    page.text = (page.text + IMAGE_TEXT_MARKER + extra).strip()
                     page.title = page.title or extra.splitlines()[0][:120]
                     read += 1
         return [f"Read text from {read} image-only {pages[0].label}s."] if read else []
