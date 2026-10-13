@@ -150,12 +150,26 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip(" .\"'")
 
 
+# The chat model sometimes quotes the evidence label in front of the excerpt
+# (e.g. "Week 2 - LLM Fundamentals.pptx, slide 33 (text excerpt) Vibe Coding
+# on \"Prod\""). The label words are NOT in the slide text, so the quote can
+# never match. Drop a leading citation label before matching. Issue #20.
+_CITATION_LABEL = re.compile(
+    r"^.*?\b(?:slide|page)\s+\d+\s+\((?:text excerpt|image)\)\s*,?\s*",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
 def quote_supported(quote: str, evidence_text: str) -> bool:
     """True if the quote appears in the evidence (exactly, or with nearly all its words)."""
     quote_n, evidence_n = _normalize(quote), _normalize(evidence_text)
     if not quote_n:
         return False
     if quote_n in evidence_n:
+        return True
+    # Retry after stripping a citation label prefix (see issue #20).
+    stripped = _CITATION_LABEL.sub("", quote_n, count=1)
+    if stripped and stripped != quote_n and stripped in evidence_n:
         return True
     quote_words = tokens(quote_n)
     if len(quote_words) < 3:

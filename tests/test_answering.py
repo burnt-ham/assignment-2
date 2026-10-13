@@ -42,6 +42,16 @@ def test_quote_check():
     assert not quote_supported("", source)
 
 
+def test_quote_with_evidence_label_prefix_still_matches():
+    # Issue #20: the model quoted the evidence label in front of the excerpt.
+    source = "Vibe Coding on \"Prod\" (source: don't overthink this, watch the video. Whatever your instinct is, it likely will not work on production.)"
+    assert quote_supported("Vibe Coding on \"Prod\"", source)
+    assert quote_supported('Week 2 - LLM Fundamentals.pptx, slide 33 (text excerpt) Vibe Coding on "Prod"', source)
+    assert quote_supported('Week 2 - LLM Fundamentals.pptx, slide 33 (image), Vibe Coding on "Prod"', source)
+    # A quote that is itself the label should not match by accident.
+    assert not quote_supported("Week 2 - LLM Fundamentals.pptx, slide 33 (text excerpt)", source)
+
+
 def test_invented_citations_are_dropped():
     parsed = AnswerModel(answer="x", sources=[{"evidence_id": "E1", "quote": "compares candidate chunks"}, {"evidence_id": "E9", "quote": "made up"}])
     checked, problems = check_sources(parsed, [evidence()])
