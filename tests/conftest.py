@@ -91,8 +91,14 @@ def offline_services(chat=None, reranker=None) -> Services:
 
 @pytest.fixture
 def make_assistant(tmp_path: Path):
+    assistants: list[CourseAssistant] = []
+
     def factory(chat=None, reranker=None, **settings) -> CourseAssistant:
         config = Settings(data_dir=tmp_path / "data", **settings)
-        return CourseAssistant(config, offline_services(chat, reranker))
+        assistant = CourseAssistant(config, offline_services(chat, reranker))
+        assistants.append(assistant)
+        return assistant
 
-    return factory
+    yield factory
+    for assistant in reversed(assistants):
+        assistant.library.close()

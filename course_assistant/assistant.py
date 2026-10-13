@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 from .answering import Answerer
@@ -19,6 +21,7 @@ from .services import (
     PageReader,
     PageTextImageEmbedder,
 )
+from .study_spaces import StudySpace, StudySpaceError, StudySpaces
 
 
 @dataclass
@@ -62,23 +65,75 @@ def build_services(settings: Settings) -> Services:
 
 class CourseAssistant:
     def __init__(self, settings: Settings | None = None, services: Services | None = None):
+        self._lock = threading.RLock()
         self.settings = settings or load_settings()
         self.services = services or build_services(self.settings)
-        self.library = Library(
-            self.settings.data_dir,
+        self.study_spaces = StudySpaces(self.settings.data_dir)
+        self._open_space(self.study_spaces.active_id)
+
+    def _build_space(self, space_id: str):
+        library = Library(
+            self.study_spaces.path(space_id),
             self.services.text_embedder,
             self.services.image_embedder,
             soffice=self.settings.soffice_path,
             page_reader=self.services.page_reader,
         )
-        self.retriever = Retriever(
-            self.library,
-            self.services.reranker,
-            mode=self.settings.retrieval_mode,
-            use_rerank=self.settings.use_rerank,
-        )
-        self.answerer = Answerer(self.retriever, self.services.chat_model)
-        self.quiz_maker = QuizMaker(self.library, self.retriever, self.services.chat_model)
+        try:
+            retriever = Retriever(
+                library,
+                self.services.reranker,
+                mode=self.settings.retrieval_mode,
+                use_rerank=self.settings.use_rerank,
+            )
+            return (library, retriever, Answerer(retriever, self.services.chat_model),
+                    QuizMaker(library, retriever, self.services.chat_model))
+        except Exception:
+            library.close()
+            raise
+
+    def _open_space(self, space_id: str) -> None:
+        self.library, self.retriever, self.answerer, self.quiz_maker = self._build_space(space_id)
+
+    def create_study_space(self, name: str) -> StudySpace:
+        with self._lock:
+            space, context = self.study_spaces.create(
+                name, prepare=self._build_space, dispose=lambda prepared: prepared[0].close()
+            )
+            old_library = self.library
+            self.library, self.retriever, self.answerer, self.quiz_maker = context
+            old_library.close()
+            return space
+
+    def switch_study_space(self, space_id: str) -> None:
+        with self._lock:
+            if space_id == self.study_spaces.active_id:
+                return
+            context = self._build_space(space_id)
+            try:
+                self.study_spaces.switch(space_id)
+            except Exception:
+                context[0].close()
+                raise
+            old_library = self.library
+            self.library, self.retriever, self.answerer, self.quiz_maker = context
+            old_library.close()
+
+    def rename_study_space(self, space_id: str, name: str) -> StudySpace:
+        with self._lock:
+            return self.study_spaces.rename(space_id, name)
+
+    def delete_study_space(self, space_id: str) -> None:
+        with self._lock:
+            self.study_spaces.delete(space_id)
+
+    @contextmanager
+    def operation(self, space_id: str):
+        """Pin a callback to the selected space and guard Chroma during switching."""
+        with self._lock:
+            if space_id != self.study_spaces.active_id:
+                raise StudySpaceError("The Study Space changed. Refresh and try again.")
+            yield
 
     def status_markdown(self) -> str:
         lines = ["| Part | Using | |", "|---|---|---|"]

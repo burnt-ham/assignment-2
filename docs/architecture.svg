@@ -19,7 +19,7 @@
   <rect width="1100" height="760" fill="#ffffff"/>
 
   <text x="30" y="36" font-size="20" font-weight="700" fill="#0f172a">Course Assistant: how it works</text>
-  <text x="30" y="58" class="small">Blue boxes run on your computer (Python + Gradio). Green boxes are stored in the data/ folder. Orange boxes are the class AI services at dobolyi.com.</text>
+  <text x="30" y="58" class="small">Blue: local Python + Gradio. Green: each active Study Space stores its own docs, images and indexes in data/profiles/{space-id}/. Orange: class AI services.</text>
 
   <!-- zones -->
   <rect x="20" y="75" width="760" height="665" class="zone" stroke="#3b82f6"/>
