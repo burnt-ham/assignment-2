@@ -8,9 +8,12 @@ from __future__ import annotations
 import html
 import logging
 import os
+import shutil
 from pathlib import Path
 
 import gradio as gr
+from gradio import processing_utils
+from gradio import utils as gradio_utils
 
 from course_assistant.assistant import CourseAssistant
 from course_assistant.config import redact
@@ -89,6 +92,26 @@ def quiz_feedback_html(item: QuizQuestion, selected_index: int | None) -> str:
         f"<div><p>{verdict} {html.escape(item.explanation)}</p>"
         f"<p><strong>Source:</strong> {html.escape(item.evidence.citation)}</p>{quote}</div>"
     )
+
+
+def remove_document(library, doc_id: str) -> str:
+    """Remove a document, including Gradio's copies of its page images.
+
+    Gradio copies every image it displays into its own cache folder (named after
+    a hash of the file), so a removed slide could still be opened by its address.
+    Find those copies while the files still exist, then delete them as well.
+    """
+    doc = library.documents.get(doc_id)
+    cache = Path(gradio_utils.get_upload_folder())
+    copies = [
+        cache / processing_utils.hash_file(page.image_path)
+        for page in (doc.pages if doc else [])
+        if page.image_path and os.path.exists(page.image_path)
+    ]
+    message = library.remove(doc_id)
+    for folder in copies:
+        shutil.rmtree(folder, ignore_errors=True)  # Gradio makes a new copy if the same image is shown again
+    return message
 
 
 def build_app(assistant: CourseAssistant) -> gr.Blocks:
@@ -208,18 +231,18 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
             with assistant.operation(space_id):
                 if not doc_id:
                     return ("<p>Choose a document to remove.</p>", *refreshed_lists())
-                return (f"<p>{html.escape(assistant.library.remove(doc_id))}</p>", *refreshed_lists())
+                return (f"<p>{html.escape(remove_document(assistant.library, doc_id))}</p>", *refreshed_lists())
         except StudySpaceError as exc:
             return (f"<p>❌ {html.escape(safe_error(exc))}</p>", *refreshed_lists())
 
     # -- asking --------------------------------------------------------------
 
-    def ask(question, doc_ids, space_id):
+    def ask(question, doc_ids, space_id, rerank_on):
         if not question or not question.strip():
             return "<p>Type a question first.</p>", "", [], ""
         try:
             with assistant.operation(space_id):
-                result = assistant.answerer.ask(question, doc_ids or None)
+                result = assistant.answerer.ask(question, doc_ids or None, use_rerank=bool(rerank_on))
         except Exception as exc:
             return f"<p>❌ {html.escape(safe_error(exc))}</p>", "", [], ""
 
@@ -285,7 +308,7 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
                 delete_button = gr.Button("Delete permanently", variant="stop")
 
         with gr.Tab("Materials"):
-            gr.Markdown(f"**Accepted files:** {SUPPORTED_DESCRIPTION} Uploading the same file twice won't duplicate it.")
+            gr.Markdown(f"**Accepted files:** {SUPPORTED_DESCRIPTION} Uploading the same file twice, or a re-saved copy of it, won't duplicate it.")
             uploader = gr.File(label="Add course files", file_count="multiple", file_types=sorted(SUPPORTED_TYPES))
             add_button = gr.Button("Add to library", variant="primary")
             add_status = gr.HTML()
@@ -299,6 +322,12 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
         with gr.Tab("Ask"):
             ask_docs = gr.Dropdown(choices=doc_choices(), multiselect=True, label="Search in (leave empty to search everything)")
             question = gr.Textbox(label="Question", placeholder="e.g. Find the meme about vibe coding on \"Prod\" and explain it", lines=2)
+            rerank_on = gr.Checkbox(
+                value=assistant.settings.use_rerank,
+                label="Rerank results with the class multimodal reranker",
+                info=("Turn off to compare raw fused search order with reranked order "
+                      f"(currently {'on' if assistant.settings.use_rerank else 'off'} by default, USE_RERANK)."),
+            )
             ask_button = gr.Button("Ask", variant="primary")
             answer = gr.HTML()
             with gr.Row():
@@ -370,8 +399,8 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
         delete_button.click(delete_space, inputs=[delete_confirm, delete_target, space_select], outputs=space_outputs, concurrency_id="study-spaces", concurrency_limit=1)
         add_button.click(add_files, inputs=[uploader, space_select], outputs=[add_status, *lists], concurrency_id="study-spaces", concurrency_limit=1)
         remove_button.click(remove_doc, inputs=[remove_choice, space_select], outputs=[add_status, *lists], concurrency_id="study-spaces", concurrency_limit=1)
-        ask_button.click(ask, inputs=[question, ask_docs, space_select], outputs=[answer, sources, gallery, evidence], concurrency_id="study-spaces", concurrency_limit=1)
-        question.submit(ask, inputs=[question, ask_docs, space_select], outputs=[answer, sources, gallery, evidence], concurrency_id="study-spaces", concurrency_limit=1)
+        ask_button.click(ask, inputs=[question, ask_docs, space_select, rerank_on], outputs=[answer, sources, gallery, evidence], concurrency_id="study-spaces", concurrency_limit=1)
+        question.submit(ask, inputs=[question, ask_docs, space_select, rerank_on], outputs=[answer, sources, gallery, evidence], concurrency_id="study-spaces", concurrency_limit=1)
         quiz_button.click(make_quiz, inputs=[quiz_docs, topic, count, space_select], outputs=[quiz_state, progress, quiz_header], concurrency_id="study-spaces", concurrency_limit=1)
         app.load(refreshed_lists, outputs=lists)
         app.load(lambda: gr.update(choices=space_choices(), value=assistant.study_spaces.active_id), outputs=space_select)

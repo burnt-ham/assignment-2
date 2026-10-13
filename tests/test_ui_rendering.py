@@ -97,7 +97,7 @@ def test_ask_answer_sources_and_evidence_do_not_parse_untrusted_markdown(make_as
                     if any(components[t[0]]["props"].get("value") == "Ask"
                            for t in d["targets"] if t[0] in components))
     assert all(components[i]["type"] == "html" for i in (callback["outputs"][0], callback["outputs"][1], callback["outputs"][3]))
-    answer, sources, _, evidence = app.fns[callback["id"]].fn("What does RAG retrieve?", [document.doc_id], "default")
+    answer, sources, _, evidence = app.fns[callback["id"]].fn("What does RAG retrieve?", [document.doc_id], "default", False)
     assert "![model](https://example.com/model)" in answer
     assert "&lt;script&gt;" in answer and "<script>" not in answer
     assert "![source](https://example.com/source)" in sources
