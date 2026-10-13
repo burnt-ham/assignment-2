@@ -66,6 +66,8 @@ def test_quiz_header_keeps_untrusted_document_name_literal(make_assistant, sampl
         "correct_option": "A",
         "explanation": "![feedback](https://example.com/feedback) <script>alert(1)</script>",
         "evidence_id": "E1", "quote": "retrieves relevant information",
+        "concept": "Retrieval-augmented generation",
+        "learning_target": "Explain what RAG retrieves before answering a question",
     }]}])
     assistant = make_assistant(chat=chat)
     document = assistant.library.add_file(sample_pdf, display_name="![source](https://example.com/source)").document

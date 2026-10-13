@@ -79,6 +79,12 @@ If nothing in the materials supports an answer, the app says so instead of guess
 
 **Quiz tab:** pick documents, optionally type a topic, choose how many questions, and click **Make quiz**. For each question, pick an answer and click **Check answer**, or click **Show answer** to see it without scoring. The score counts only checked answers. The answer key is fixed when the quiz is made, and the explanation shows the source excerpt and slide.
 
+### Quiz 2.0 creation work (in progress)
+
+Model-written questions now carry a reusable **concept** and a specific **learning target**, shown beside each question; the quiz header summarizes concept coverage. A topic filters retrieval, while an unfocused quiz draws evidence across selected documents and across each long document. Creation checks source IDs and text quotes, four nonblank choices distinct after case/whitespace normalization, course-section labels masquerading as concepts, and generic all/none options. Choices are displayed as written, so scientific names and programming syntax are not silently changed; near-duplicates with different punctuation or wording still need human review. Rejected or repeated questions trigger up to two bounded replacement batches rather than silently shrinking the quiz. If a replacement call fails, previously accepted questions remain; service error details are not shown to students. Offline fallback questions are simpler term-recall questions, explicitly labeled with source-derived tags.
+
+**Quality limit:** these deterministic checks do not prove that a paraphrased explanation is entailed by the source, that distractors are equally plausible, or that exactly one choice is semantically correct. The team must review real model output against its cited evidence before relying on it. Persistent question banks, attempts, study statuses, adaptive review and Study Space-scoped history are later Quiz 2.0 work, not part of this creation slice.
+
 ### Supported files
 
 | Type | How it's read | Needs LibreOffice |
@@ -210,7 +216,7 @@ Other limitations:
 | Class-service wire formats (issue #6) | The clients in `services.py` were run against the live endpoints: text embeddings (port 9002) return 2048-dim vectors; visual embeddings (port 9003, chat-style messages) return 2048-dim vectors in the same space — a text query "Vibe Coding on 'Prod'" scores **0.60** against the real Week 2 slide 33 meme image; the multimodal reranker (port 9004, separate text/image calls) scored the same meme image **0.749**, at or near the top for that query. See `tests/test_services_live.py`. |
 | All five course decks and the syllabus convert and load | Loaded in the app; slide images compared with the originals by eye |
 | Add, repeat upload, remove, ask, quiz, check and show answer | Clicked through in a browser (Chromium) in offline mode |
-| Theme controls function in offline browser QA | Full light/dark visual sign-off of Study Spaces is still pending |
+| Theme controls function in offline browser QA | Full light/dark visual sign-off of Study Spaces and Quiz 2.0 is still pending |
 | Keys stay out of errors | Unit test with a fake service that echoes the key back |
 | Evaluation script runs | Offline dry run, saved in `eval/results/` |
 | All five class services, the Ask tab and the evaluation questions with the real models | On Windows, 2026-10-08: all five services answered, the five decks and the syllabus loaded with LibreOffice, and the 8 questions plus 3 reranking on/off runs completed (see [Evaluation](#evaluation)) |

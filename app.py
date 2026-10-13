@@ -18,7 +18,7 @@ from gradio import utils as gradio_utils
 from course_assistant.assistant import CourseAssistant
 from course_assistant.config import redact
 from course_assistant.ingest import SUPPORTED_DESCRIPTION, SUPPORTED_TYPES, IngestError
-from course_assistant.quiz import LETTERS, MAX_QUESTIONS, QuizError, QuizQuestion, grade
+from course_assistant.quiz import MAX_QUESTIONS, Quiz, QuizError, QuizQuestion, grade
 from course_assistant.services import ServiceError
 from course_assistant.study_spaces import StudySpaceError
 
@@ -31,11 +31,55 @@ CSS = """
 """
 
 
+def quiz_choice_labels(item: QuizQuestion) -> tuple[str, ...]:
+    """Use each answer verbatim; adding letters could alter scientific names."""
+    return item.options
+
+
 def quiz_question_heading(number: int, item: QuizQuestion) -> str:
-    return f"<strong>{number}. {html.escape(item.question)}</strong>"
+    """Display question and study tags as escaped HTML, not Markdown."""
+    lines = [f"<strong>{number}. {html.escape(item.question)}</strong>"]
+    if item.concept:
+        lines.append(f"<span>Concept: {html.escape(item.concept)}</span>")
+    if item.learning_target:
+        lines.append(f"<span>Learning target: {html.escape(item.learning_target)}</span>")
+    return "<div>" + "<br>".join(lines) + "</div>"
+
+
+def quiz_coverage_summary(quiz: Quiz) -> str:
+    """Show which concepts a generated quiz covers, grouping case variants."""
+    concepts: dict[str, list] = {}
+    for item in quiz.questions:
+        label = item.concept.strip() or "Uncategorized"
+        key = label.casefold()
+        if key not in concepts:
+            concepts[key] = [label, 0]
+        concepts[key][1] += 1
+    return "Concepts covered: " + ", ".join(
+        f"{html.escape(label)} ({count})" for label, count in concepts.values()
+    )
+
+
+def quiz_ready_header(quiz: Quiz) -> str:
+    count = len(quiz.questions)
+    noun = "question" if count == 1 else "questions"
+    documents = ", ".join(html.escape(name) for name in quiz.doc_names)
+    topic = f", topic: {html.escape(quiz.topic)}" if quiz.topic else ""
+    return f"Quiz ready: {count} {noun} from {documents}{topic}"
+
+
+def quiz_result_html(quiz: Quiz) -> str:
+    """Render escaped quiz metadata without interpreting Markdown in model text."""
+    notes = "".join(f"<p>ℹ️ {html.escape(note)}</p>" for note in quiz.notes)
+    return (
+        f"<div><p>{quiz_ready_header(quiz)}</p>"
+        f"<p>{quiz_coverage_summary(quiz)}</p>"
+        f"<p><small>Written by {html.escape(quiz.source)}</small></p>{notes}</div>"
+    )
 
 
 def quiz_feedback_html(item: QuizQuestion, selected_index: int | None) -> str:
+    """Render feedback and citations as escaped HTML rather than Markdown."""
     correct_answer = html.escape(item.options[item.correct_index])
     if selected_index is None:
         verdict = f"The answer is <strong>{correct_answer}</strong>."
@@ -242,11 +286,7 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
                 quiz = assistant.quiz_maker.make_quiz(doc_ids or [], topic or "", int(count))
         except Exception as exc:
             return None, {"answers": {}, "revealed": []}, f"<p>❌ {html.escape(safe_error(exc))}</p>"
-        notes = "".join(f"<p>ℹ️ {html.escape(note)}</p>" for note in quiz.notes)
-        doc_names = ", ".join(html.escape(name) for name in quiz.doc_names)
-        topic_html = f", topic: {html.escape(quiz.topic)}" if quiz.topic else ""
-        header = f"<p>Quiz ready: {len(quiz.questions)} questions from {doc_names}{topic_html}</p>"
-        return quiz, {"answers": {}, "revealed": []}, header + f"<p><small>Written by {html.escape(quiz.source)}</small></p>" + notes
+        return quiz, {"answers": {}, "revealed": []}, quiz_result_html(quiz)
 
     with gr.Blocks(title="Course Assistant") as app:
         gr.Markdown("# Course Assistant\nAsk questions about your course materials, see the exact slides behind each answer, and take practice quizzes.")
@@ -317,7 +357,7 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
                 result = grade(quiz, answers)
                 gr.Markdown(f"### Score: {result.correct} of {result.total} correct ({result.answered} answered)")
                 for index, item in enumerate(quiz.questions):
-                    labels = [f"{LETTERS[i]}. {option}" for i, option in enumerate(item.options)]
+                    labels = quiz_choice_labels(item)
                     done = index in answers or index in revealed
                     with gr.Group():
                         gr.HTML(quiz_question_heading(index + 1, item))
