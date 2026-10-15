@@ -80,8 +80,8 @@
   <text x="355" y="427" text-anchor="middle" class="small">keyword + text meaning + image meaning</text>
 
   <rect x="510" y="384" width="250" height="62" class="box local"/>
-  <text x="635" y="408" text-anchor="middle" class="title">Fuse + rerank</text>
-  <text x="635" y="427" text-anchor="middle" class="small">reciprocal rank fusion, then reranker</text>
+  <text x="635" y="408" text-anchor="middle" class="title">Fuse + optional rerank</text>
+  <text x="635" y="427" text-anchor="middle" class="small">rank fusion; reranker off by default</text>
 
   <path d="M200,415 L228,415" class="line"/>
   <path d="M480,415 L508,415" class="line"/>

@@ -165,3 +165,11 @@ def test_bare_id_text_citation_cannot_be_checked(make_assistant, sample_pdf):
 def test_extract_json_falls_back_when_the_answer_is_inside_the_reasoning_block():
     reply = '<think>{"found": true, "answer": "x", "sources": []}</think>'
     assert extract_json(reply)["answer"] == "x"
+
+
+def test_prompt_asks_for_quotes_without_the_evidence_label():
+    # The class chat model sometimes copied the label into the quote (issue #20)
+    from course_assistant.answering import SYSTEM_PROMPT
+    from course_assistant.quiz import QUIZ_SYSTEM_PROMPT
+    assert "never its label" in SYSTEM_PROMPT
+    assert "without the evidence label" in QUIZ_SYSTEM_PROMPT
