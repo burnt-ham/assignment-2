@@ -9,17 +9,25 @@ Other project docs: [PLAN.md](PLAN.md) (build plan and issues), [docs/assignment
 
 ## Screenshots
 
-These were taken on 2026-10-09 with all five class services connected, before Study Spaces and Quiz 2.0 were merged. The current app also shows the Study Space selector above the tabs, and each quiz question shows its concept and learning target.
+Taken by Kristen on 2026-10-15 from the final app (`main` plus PRs #22 and #23), with all five class services connected and the five course decks plus the syllabus loaded. The browser toolbar was cropped out.
 
-**An answer with its supporting slide image.** The question about the "Vibe Coding on 'Prod'" meme was asked across all documents, with no document filter. The class chat model found Week 2 slide 33, its quote was checked against the slide text (**✓ checked**), and the original slide is shown next to the answer:
+**An answer with its supporting slide image.** The question "Find the meme about vibe coding on "Prod" and explain it" was asked across all documents, with no document filter. The class chat model described the meme and cited Week 2 slide 33, and the original slide is shown next to the answer. The app also listed slide 27 as a source but marked it "source text match not found", so the reader can see that citation wasn't confirmed:
 
-![Answer with the source slide image](docs/images/answer-with-slide-live.png)
+![Answer with the source slide image](docs/images/answer-with-slide-final.png)
 
-**Quiz feedback with sources.** A 3-question quiz on the Week 5 deck with the topic "reranking", written by the class chat model. Each answer stays hidden until you check it or click **Show answer**. Feedback shows the correct option, the explanation, the source slide, the quoted text and the original slide image:
+**Quiz feedback with sources.** A 3-question Quiz 2.0 quiz on the Week 5 deck with the topic "reranking", written by the class chat model. Each question shows its concept and learning target. The answer stays hidden until you click **Check answer** or **Show answer**. After checking, the feedback shows whether you were right, the source (Week 5 slide 18) and the original slide image:
 
-![Quiz feedback with the source slide](docs/images/quiz-feedback-live.png)
+![Quiz feedback with the source slide](docs/images/quiz-feedback-final.png)
 
-Also checked: quiz feedback in dark mode ([screenshot](docs/images/quiz-feedback-dark-live.png)), a quiz before any answer is checked ([screenshot](docs/images/quiz-before-live.png)), and, in offline mode, the Materials tab ([screenshot](docs/images/materials.png)).
+**The Materials tab with Study Spaces.** The active Study Space and the six documents in its library:
+
+![Materials tab with the Study Space selector](docs/images/materials-study-spaces-final.png)
+
+**Dark mode.** The same meme question in dark mode. Text and controls stay readable, and slide images keep their white background:
+
+![Answer in dark mode](docs/images/answer-dark-mode-final.png)
+
+Earlier screenshots, taken 2026-10-09 before Study Spaces and Quiz 2.0 were merged, are kept for reference: [answer](docs/images/answer-with-slide-live.png), [quiz feedback](docs/images/quiz-feedback-live.png), [quiz feedback in dark mode](docs/images/quiz-feedback-dark-live.png).
 
 ## Setup
 
