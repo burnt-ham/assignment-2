@@ -237,6 +237,9 @@ class QuizMaker:
                 questions, source = offline_questions(evidence, count), "offline generator"
         else:
             questions, source = offline_questions(evidence, count), "offline generator"
+        if not questions and source != "offline generator":
+            notes.append("No generated questions passed validation or the answer check; simpler source-based offline questions were made instead.")
+            questions, source = offline_questions(evidence, count), "offline generator"
         if not questions:
             raise QuizError("I couldn't write valid questions from that material. Try other documents or a broader topic.")
         if len(questions) < count:
@@ -245,6 +248,7 @@ class QuizMaker:
 
     def _model_questions(self, evidence: list[Evidence], count: int, topic: str) -> tuple[list[QuizQuestion], list[str]]:
         from .answering import build_user_message
+        assert self.chat_model is not None
 
         request = f"Write {count} multiple-choice questions" + (f" about: {topic}" if topic.strip() else " covering the evidence")
         user, images = build_user_message(request, evidence)
@@ -281,6 +285,16 @@ class QuizMaker:
                     problems.append(f"Question {number} in quiz batch {attempt + 1} was dropped because its fields were invalid.")
             accepted, rejected = validate_questions(QuizModel(questions=parsed_questions), evidence)
             problems.extend(rejected)
+            if accepted:
+                from .quiz_validation import verify_answer_keys
+                try:
+                    accepted, rejected = verify_answer_keys(accepted, self.chat_model)
+                except ServiceError:
+                    if not questions:
+                        raise
+                    problems.append("The answer check stopped during replacement; checked earlier questions were kept.")
+                    break
+                problems.extend(rejected)
             seen = {_choice_key(q.question) for q in questions}
             seen_targets = {
                 (_choice_key(q.concept), _choice_key(q.learning_target), _choice_key(q.options[q.correct_index]))
@@ -349,7 +363,7 @@ def offline_questions(evidence: list[Evidence], count: int, seed: int = 7) -> li
                     evidence=item,
                     quote=sentence,
                     concept=item.title.strip() or item.doc_name,
-                    learning_target=f"Recall the source term: {answer}",
+                    learning_target="Recall a key term from the cited passage",
                 )
             )
             break

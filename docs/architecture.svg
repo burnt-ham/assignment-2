@@ -32,7 +32,7 @@
   <rect x="40" y="138" width="170" height="70" class="box local"/>
   <text x="125" y="165" text-anchor="middle" class="title">Upload</text>
   <text x="125" y="184" text-anchor="middle" class="small">PDF, PPTX, DOCX, TXT, MD</text>
-  <text x="125" y="198" text-anchor="middle" class="small">duplicates skipped (file hash)</text>
+  <text x="125" y="198" text-anchor="middle" class="small">dedup: hash + pages</text>
 
   <rect x="240" y="138" width="170" height="70" class="box local"/>
   <text x="325" y="160" text-anchor="middle" class="title">Convert + render</text>
@@ -80,8 +80,8 @@
   <text x="355" y="427" text-anchor="middle" class="small">keyword + text meaning + image meaning</text>
 
   <rect x="510" y="384" width="250" height="62" class="box local"/>
-  <text x="635" y="408" text-anchor="middle" class="title">Fuse + rerank</text>
-  <text x="635" y="427" text-anchor="middle" class="small">reciprocal rank fusion, then reranker</text>
+  <text x="635" y="408" text-anchor="middle" class="title">Fuse + optional rerank</text>
+  <text x="635" y="427" text-anchor="middle" class="small">rank fusion; reranker off by default</text>
 
   <path d="M200,415 L228,415" class="line"/>
   <path d="M480,415 L508,415" class="line"/>
@@ -108,8 +108,8 @@
   <rect x="40" y="620" width="720" height="94" class="box local"/>
   <text x="400" y="646" text-anchor="middle" class="title">Gradio interface</text>
   <text x="400" y="666" text-anchor="middle" class="text">Answer + cited document and slide/page + source excerpt + original slide image</text>
-  <text x="400" y="686" text-anchor="middle" class="text">Quiz: multiple choice, fixed answer key, solutions hidden until answered or requested, score + sourced explanation</text>
-  <text x="400" y="704" text-anchor="middle" class="small">Quizzes use the same retrieval and checks, with a quiz-writing prompt instead</text>
+  <text x="400" y="686" text-anchor="middle" class="text">Quiz: fixed key, hidden answers, concept/target tags, score + source feedback</text>
+  <text x="400" y="704" text-anchor="middle" class="small">Quiz writer + blind key corroboration (not proof), bounded retries, offline fallback</text>
   <path d="M580,586 L580,618" class="line"/>
 
   <!-- services -->

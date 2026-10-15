@@ -6,6 +6,7 @@ Run with:  python app.py   then open http://127.0.0.1:7860
 from __future__ import annotations
 
 import html
+import json
 import logging
 import os
 import shutil
@@ -94,7 +95,7 @@ def quiz_feedback_html(item: QuizQuestion, selected_index: int | None) -> str:
     )
 
 
-def remove_document(library, doc_id: str) -> str:
+def remove_document(library, doc_id: str, retained: set[Path] | None = None) -> str:
     """Remove a document, including Gradio's copies of its page images.
 
     Gradio copies every image it displays into its own cache folder (named after
@@ -103,15 +104,44 @@ def remove_document(library, doc_id: str) -> str:
     """
     doc = library.documents.get(doc_id)
     cache = Path(gradio_utils.get_upload_folder())
-    copies = [
+    copies = {
         cache / processing_utils.hash_file(page.image_path)
         for page in (doc.pages if doc else [])
         if page.image_path and os.path.exists(page.image_path)
-    ]
-    message = library.remove(doc_id)
-    for folder in copies:
-        shutil.rmtree(folder, ignore_errors=True)  # Gradio makes a new copy if the same image is shown again
+    }
+    retained = set(retained or ())
+    for other in library.documents.values():
+        if other.doc_id != doc_id:
+            retained.update(
+                cache / processing_utils.hash_file(page.image_path)
+                for page in other.pages if page.image_path and os.path.exists(page.image_path)
+            )
+    try:
+        message = library.remove(doc_id)
+    finally:
+        # A source-file cleanup error can occur after the manifest commit.
+        # Never remove cache entries when rollback kept the document instead.
+        if doc_id not in library.documents:
+            for folder in copies - retained:
+                shutil.rmtree(folder, ignore_errors=True)
     return message
+
+
+def cached_space_images(space_path: Path) -> list[Path]:
+    """Find Gradio's copies while an inactive space's source images still exist."""
+    manifest = space_path / "library.json"
+    if not manifest.is_file():
+        return []
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    cache = Path(gradio_utils.get_upload_folder())
+    root = space_path.resolve()
+    copies = set()
+    for document in data.get("documents", []):
+        for page in document.get("pages", []):
+            path = page.get("image_path")
+            if path and (image := Path(path)).is_file() and image.resolve().is_relative_to(root):
+                copies.add(cache / processing_utils.hash_file(str(image)))
+    return list(copies)
 
 
 def build_app(assistant: CourseAssistant) -> gr.Blocks:
@@ -201,7 +231,21 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
             with assistant.operation(space_id):
                 if not target_id:
                     raise StudySpaceError("Select a Study Space to delete first.")
-                assistant.delete_study_space(target_id)
+                copies = set(cached_space_images(assistant.study_spaces.path(target_id)))
+                # Gradio keys cache folders by image content, not Study Space.
+                # Another space may still display the very same slide image.
+                retained = set().union(*(
+                    cached_space_images(assistant.study_spaces.path(space.space_id))
+                    for space in assistant.study_spaces.list() if space.space_id != target_id
+                ))
+                try:
+                    assistant.delete_study_space(target_id)
+                finally:
+                    # Quarantine cleanup can fail after registry removal;
+                    # still discard cache copies unless the space survived.
+                    if target_id not in {s.space_id for s in assistant.study_spaces.list()}:
+                        for folder in copies - retained:
+                            shutil.rmtree(folder, ignore_errors=True)
             return refresh_space("Study Space and its stored documents deleted.")
         except Exception as exc:
             return refresh_space(f"❌ {safe_error(exc)}")
@@ -231,8 +275,12 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
             with assistant.operation(space_id):
                 if not doc_id:
                     return ("<p>Choose a document to remove.</p>", *refreshed_lists())
-                return (f"<p>{html.escape(remove_document(assistant.library, doc_id))}</p>", *refreshed_lists())
-        except StudySpaceError as exc:
+                retained = set().union(*(
+                    cached_space_images(assistant.study_spaces.path(space.space_id))
+                    for space in assistant.study_spaces.list() if space.space_id != space_id
+                ))
+                return (f"<p>{html.escape(remove_document(assistant.library, doc_id, retained))}</p>", *refreshed_lists())
+        except Exception as exc:
             return (f"<p>❌ {html.escape(safe_error(exc))}</p>", *refreshed_lists())
 
     # -- asking --------------------------------------------------------------
@@ -255,7 +303,12 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
         if result.sources:
             lines = ["<h3>Sources</h3>"]
             for source in result.sources:
-                mark = "✓ checked" if source.verified else "✗ not confirmed"
+                if source.evidence.kind == "image":
+                    mark = "image source attached; not visually checked"
+                elif source.verified:
+                    mark = "source text/words matched; answer not fact-checked"
+                else:
+                    mark = "source text match not found"
                 lines.append(f"<p><strong>{html.escape(source.evidence.citation)}</strong> "
                              f"({html.escape(source.evidence.kind)}) · <span class='verified'>{mark}</span></p>")
                 if source.quote:
@@ -285,8 +338,11 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
             with assistant.operation(space_id):
                 quiz = assistant.quiz_maker.make_quiz(doc_ids or [], topic or "", int(count))
         except Exception as exc:
-            return None, {"answers": {}, "revealed": []}, f"<p>❌ {html.escape(safe_error(exc))}</p>"
-        return quiz, {"answers": {}, "revealed": []}, quiz_result_html(quiz)
+            return (None, {"answers": {}, "revealed": []},
+                    f"<p>❌ {html.escape(safe_error(exc))}</p>",
+                    gr.update(visible=False), gr.update(interactive=True))
+        return (quiz, {"answers": {}, "revealed": []}, quiz_result_html(quiz),
+                gr.update(visible=False), gr.update(interactive=True))
 
     with gr.Blocks(title="Course Assistant") as app:
         gr.Markdown("# Course Assistant\nAsk questions about your course materials, see the exact slides behind each answer, and take practice quizzes.")
@@ -344,6 +400,8 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
                 topic = gr.Textbox(label="Topic (optional)", placeholder="e.g. RAG", scale=3)
                 count = gr.Slider(1, MAX_QUESTIONS, value=5, step=1, label="Questions", scale=1)
             quiz_button = gr.Button("Make quiz", variant="primary")
+            quiz_loading = gr.HTML("<p role='status' aria-live='polite'>⏳ Generating your quiz… This may take a moment.</p>",
+                                   visible=False, elem_id="quiz-loading")
             quiz_header = gr.HTML()
             quiz_state = gr.State(None)
             progress = gr.State({"answers": {}, "revealed": []})
@@ -401,7 +459,14 @@ def build_app(assistant: CourseAssistant) -> gr.Blocks:
         remove_button.click(remove_doc, inputs=[remove_choice, space_select], outputs=[add_status, *lists], concurrency_id="study-spaces", concurrency_limit=1)
         ask_button.click(ask, inputs=[question, ask_docs, space_select, rerank_on], outputs=[answer, sources, gallery, evidence], concurrency_id="study-spaces", concurrency_limit=1)
         question.submit(ask, inputs=[question, ask_docs, space_select, rerank_on], outputs=[answer, sources, gallery, evidence], concurrency_id="study-spaces", concurrency_limit=1)
-        quiz_button.click(make_quiz, inputs=[quiz_docs, topic, count, space_select], outputs=[quiz_state, progress, quiz_header], concurrency_id="study-spaces", concurrency_limit=1)
+        quiz_button.click(
+            lambda: (gr.update(visible=True), gr.update(interactive=False)),
+            outputs=[quiz_loading, quiz_button], queue=False, js=True,
+        ).then(
+            make_quiz, inputs=[quiz_docs, topic, count, space_select],
+            outputs=[quiz_state, progress, quiz_header, quiz_loading, quiz_button],
+            concurrency_id="study-spaces", concurrency_limit=1,
+        )
         app.load(refreshed_lists, outputs=lists)
         app.load(lambda: gr.update(choices=space_choices(), value=assistant.study_spaces.active_id), outputs=space_select)
     return app

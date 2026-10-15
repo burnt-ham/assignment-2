@@ -303,13 +303,46 @@ class Library:
 
     def remove(self, doc_id: str) -> str:
         with self._lock:
-            doc = self.documents.pop(doc_id, None)
+            doc = self.documents.get(doc_id)
             if doc is None:
                 return "That document isn't in the library."
-            self._delete_from_indexes(doc_id)
-            _remove_tree(self.docs_dir / doc_id, ignore_errors=True)
-            self._save()
-            self._rebuild_keyword_index()
+            # Keep the source and manifest intact until both indexes can be
+            # updated. Save the existing vectors so rollback never calls a
+            # remote embedding service (which might itself be unavailable).
+            snapshots = [
+                (index, index.get(where={"doc_id": doc_id}, include=["embeddings", "metadatas"]))
+                for index in (self.image_index, self.text_index)
+            ]
+            previous_keyword = self._bm25, self._bm25_chunks
+            try:
+                self._delete_from_indexes(doc_id)
+                del self.documents[doc_id]
+                self._rebuild_keyword_index()
+                self._save()
+            except Exception:
+                self.documents[doc_id] = doc
+                # Rebuilding again may fail for the same reason that caused
+                # the rollback. Restore the last complete keyword index.
+                self._bm25, self._bm25_chunks = previous_keyword
+                try:
+                    for index, snapshot in snapshots:
+                        if snapshot["ids"]:
+                            index.upsert(ids=snapshot["ids"],
+                                         embeddings=snapshot["embeddings"].tolist(),
+                                         metadatas=snapshot["metadatas"])
+                except Exception as restore_error:
+                    raise RuntimeError(
+                        "Document files and manifest remain, but its search index could not be restored. "
+                        "Rebuild the indexes before using search."
+                    ) from restore_error
+                raise
+            # Files can only be destroyed after the manifest commit. A cleanup
+            # failure is explicit rather than reporting complete deletion.
+            folder = self.docs_dir / doc_id
+            try:
+                _remove_tree(folder)
+            except OSError as exc:
+                raise OSError(f"Document was removed from search, but files remain at {folder}.") from exc
             return f"Removed {doc.name} and everything searchable from it."
 
     def _read_image_text(self, pages: list[Page]) -> list[str]:

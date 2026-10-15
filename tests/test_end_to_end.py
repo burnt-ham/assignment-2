@@ -41,6 +41,8 @@ def test_full_workflow_add_ask_quiz_remove(make_assistant, sample_pdf, sample_md
         "quote": "prioritizes which chunks are supplied",
         "concept": "Reranking",
         "learning_target": "Explain what reranking prioritizes",
+    }]}, {"checks": [{
+        "number": 1, "correct_option": "A", "quote": "prioritizes which chunks are supplied",
     }]}]
     quiz = assistant.quiz_maker.make_quiz([pdf.doc_id], topic="reranking", count=1)
     assert quiz.questions[0].evidence.doc_id == pdf.doc_id
@@ -86,3 +88,45 @@ def test_missing_information_is_acknowledged(make_assistant, sample_pdf):
 
 def test_interface_builds(make_assistant):
     assert isinstance(build_app(make_assistant()), gr.Blocks)
+
+
+def test_make_quiz_click_immediately_shows_progress_and_disables_button(make_assistant):
+    app = build_app(make_assistant())
+    components = {component["id"]: component for component in app.config["components"]}
+    button = next(component for component in components.values()
+                  if component["type"] == "button" and component["props"]["value"] == "Make quiz")
+    loading = next(component for component in components.values()
+                   if component["props"].get("elem_id") == "quiz-loading")
+
+    assert loading["props"]["visible"] is False
+    assert "Generating" in loading["props"]["value"]
+    start = next(event for event in app.config["dependencies"]
+                 if event["targets"] == [(button["id"], "click")])
+    assert start["queue"] is False
+    assert start["js"] is True
+    assert start["outputs"] == [loading["id"], button["id"]]
+    finish = next(event for event in app.config["dependencies"]
+                  if event["trigger_after"] == start["id"])
+    assert finish["queue"] is True
+    assert loading["id"] in finish["outputs"]
+    assert button["id"] in finish["outputs"]
+
+
+def test_make_quiz_error_hides_progress_and_allows_retry(make_assistant):
+    assistant = make_assistant()
+    app = build_app(assistant)
+    button = next(component for component in app.config["components"]
+                  if component["type"] == "button" and component["props"]["value"] == "Make quiz")
+    start = next(event for event in app.config["dependencies"]
+                 if event["targets"] == [(button["id"], "click")])
+    finish = next(event for event in app.config["dependencies"]
+                  if event["trigger_after"] == start["id"])
+
+    quiz, state, message, loading, button_update = app.fns[finish["id"]].fn(
+        [], "", 1, assistant.study_spaces.active_id,
+    )
+    assert quiz is None
+    assert state == {"answers": {}, "revealed": []}
+    assert "❌" in message
+    assert loading["visible"] is False
+    assert button_update["interactive"] is True

@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 
 import pymupdf
+import pytest
 from conftest import make_pdf
 
 from course_assistant.library import Library, chunk_pages, same_content
@@ -156,3 +157,43 @@ def test_removal_deletes_gradios_copies_of_page_images(sample_pdf, tmp_path, mon
     assert all(Path(copy).exists() for copy in shown)
     assert "Removed" in remove_document(library, doc.doc_id)
     assert not any(Path(copy).exists() for copy in shown)
+
+
+def test_failed_index_removal_preserves_document_and_restores_deleted_vectors(sample_pdf, tmp_path, monkeypatch):
+    library = new_library(tmp_path / "data")
+    doc = library.add_file(sample_pdf).document
+    original_delete = library.text_index.delete
+
+    def fail_text_delete(*args, **kwargs):
+        raise OSError("text index unavailable")
+
+    monkeypatch.setattr(library.text_index, "delete", fail_text_delete)
+    with pytest.raises(OSError, match="text index unavailable"):
+        library.remove(doc.doc_id)
+    monkeypatch.setattr(library.text_index, "delete", original_delete)
+    assert doc.doc_id in library.documents
+    assert (library.docs_dir / doc.doc_id).exists()
+    assert library.image_index.count() == len(doc.pages)
+    assert library.text_index.count() == len(doc.chunks)
+    assert library.keyword_search("reranking", 5)
+    library.close()
+    reopened = new_library(tmp_path / "data")
+    assert doc.doc_id in reopened.documents
+
+
+def test_failed_manifest_write_rolls_back_document_removal(sample_pdf, tmp_path, monkeypatch):
+    library = new_library(tmp_path / "data")
+    doc = library.add_file(sample_pdf).document
+    original_save = library._save
+    monkeypatch.setattr(library, "_save", lambda: (_ for _ in ()).throw(OSError("disk full")))
+    with pytest.raises(OSError, match="disk full"):
+        library.remove(doc.doc_id)
+    monkeypatch.setattr(library, "_save", original_save)
+    assert doc.doc_id in library.documents
+    assert (library.docs_dir / doc.doc_id).exists()
+    assert library.image_index.count() == len(doc.pages)
+    assert library.text_index.count() == len(doc.chunks)
+    assert library.keyword_search("reranking", 5)
+    library.close()
+    reopened = new_library(tmp_path / "data")
+    assert doc.doc_id in reopened.documents
