@@ -6,6 +6,7 @@ import app as ui
 from app import build_app
 from conftest import FakeChat
 from course_assistant.quiz import QuizQuestion
+from course_assistant.answering import AnswerResult, CheckedSource
 from course_assistant.retrieval import Evidence
 
 
@@ -21,6 +22,25 @@ def test_quiz_question_heading_is_literal_html():
     heading = ui.quiz_question_heading(1, unsafe_question())
     assert "![prompt](https://example.com/prompt)" in heading
     assert "&lt;script&gt;" in heading and "<script>" not in heading
+
+
+def test_ask_source_labels_describe_location_not_fact_checking(make_assistant, monkeypatch):
+    assistant = make_assistant()
+    text = Evidence("E1", "text", "d1", "Slides", 2, "slide", "RAG", "evidence phrase", "", 1.0)
+    image = Evidence("E2", "image", "d1", "Slides", 2, "slide", "RAG", "", "", 1.0)
+    sources = [CheckedSource(text, "evidence phrase", True, "Quote found in the source."),
+               CheckedSource(image, "chart", True, "Image evidence: compare the slide image with the answer.")]
+    monkeypatch.setattr(assistant.answerer, "ask", lambda *a, **kw:
+                        AnswerResult("question", "answer", True, sources, [], model="offline"))
+    app = build_app(assistant)
+    components = {c["id"]: c for c in app.config["components"]}
+    callback = next(d for d in app.config["dependencies"]
+                    if any(components[t[0]]["props"].get("value") == "Ask"
+                           for t in d["targets"] if t[0] in components))
+    _, citations, _, _ = app.fns[callback["id"]].fn("question", [], "default", False)
+    assert "source text/words matched; answer not fact-checked" in citations
+    assert "image source attached; not visually checked" in citations
+    assert "✓ checked" not in citations
 
 
 def test_quiz_feedback_and_citation_are_literal_html():
@@ -68,17 +88,19 @@ def test_quiz_header_keeps_untrusted_document_name_literal(make_assistant, sampl
         "evidence_id": "E1", "quote": "retrieves relevant information",
         "concept": "Retrieval-augmented generation",
         "learning_target": "Explain what RAG retrieves before answering a question",
-    }]}])
+    }]}, {"checks": [{"number": 1, "correct_option": "A", "quote": "retrieves relevant information"}]}])
     assistant = make_assistant(chat=chat)
     document = assistant.library.add_file(sample_pdf, display_name="![source](https://example.com/source)").document
     app = build_app(assistant)
     components = {c["id"]: c for c in app.config["components"]}
-    callback = next(d for d in app.config["dependencies"]
-                    if any(components[t[0]]["props"].get("value") == "Make quiz"
-                           for t in d["targets"] if t[0] in components))
+    click = next(d for d in app.config["dependencies"]
+                 if any(components[t[0]]["props"].get("value") == "Make quiz"
+                        for t in d["targets"] if t[0] in components))
+    callback = next(d for d in app.config["dependencies"] if d["trigger_after"] == click["id"])
     assert components[callback["outputs"][2]]["type"] == "html"
-    quiz, _, header = app.fns[callback["id"]].fn([document.doc_id], "", 1, "default")
+    quiz, _, header, loading, button = app.fns[callback["id"]].fn([document.doc_id], "", 1, "default")
     assert "![source](https://example.com/source)" in header
+    assert loading["visible"] is False and button["interactive"] is True
     assert quiz.questions
     assert "![prompt](https://example.com/prompt)" in quiz.questions[0].question
 

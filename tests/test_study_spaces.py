@@ -79,6 +79,11 @@ def test_every_material_and_question_action_binds_selected_space(make_assistant)
                  if any(components[t[0]]["props"].get("value") in actions
                         for t in d["targets"] if t[0] in components)]
     assert len(callbacks) == 4
+    # The quiz's immediate client-side loading event is followed by the queued
+    # operation that must bind the selected Study Space.
+    callbacks = [next(d for d in app.config["dependencies"]
+                      if d["trigger_after"] == callback["id"])
+                 if callback["js"] is not None else callback for callback in callbacks]
     assert all(space_id in d["inputs"] for d in callbacks)
     assert len({d.get("concurrency_id") for d in callbacks}) == 1
 
@@ -191,6 +196,119 @@ def test_delete_only_removes_selected_space_and_rejects_active(make_assistant, s
     assert assistant.study_spaces.path("default").exists()
     with pytest.raises(StudySpaceError):
         assistant.delete_study_space("default")
+
+
+def test_delete_space_cleans_cached_slide_images_only_after_success(make_assistant, sample_pdf, tmp_path, monkeypatch):
+    from gradio import processing_utils
+
+    monkeypatch.setenv("GRADIO_TEMP_DIR", str(tmp_path / "gradio-cache"))
+    assistant = make_assistant()
+    other = assistant.create_study_space("Finance Final")
+    document = assistant.library.add_file(sample_pdf).document
+    images = [processing_utils.save_file_to_cache(page.image_path, str(tmp_path / "gradio-cache"))
+              for page in document.pages]
+    assistant.switch_study_space("default")
+    app = build_app(assistant)
+    components = {c["id"]: c for c in app.config["components"]}
+    callback = next(d for d in app.config["dependencies"]
+                    if any(components[t[0]]["props"].get("value") == "Delete permanently"
+                           for t in d["targets"] if t[0] in components))
+    result = app.fns[callback["id"]].fn(True, other.space_id, "default")
+    assert "deleted" in result[1]
+    assert not any(Path(copy).exists() for copy in images)
+
+
+def test_failed_space_delete_does_not_remove_cached_slides(make_assistant, sample_pdf, tmp_path, monkeypatch):
+    from gradio import processing_utils
+
+    monkeypatch.setenv("GRADIO_TEMP_DIR", str(tmp_path / "gradio-cache"))
+    assistant = make_assistant()
+    other = assistant.create_study_space("Finance Final")
+    document = assistant.library.add_file(sample_pdf).document
+    cached = processing_utils.save_file_to_cache(document.pages[0].image_path, str(tmp_path / "gradio-cache"))
+    assistant.switch_study_space("default")
+    monkeypatch.setattr(assistant.study_spaces, "_save", lambda: (_ for _ in ()).throw(OSError("disk full")))
+    app = build_app(assistant)
+    components = {c["id"]: c for c in app.config["components"]}
+    callback = next(d for d in app.config["dependencies"]
+                    if any(components[t[0]]["props"].get("value") == "Delete permanently"
+                           for t in d["targets"] if t[0] in components))
+    result = app.fns[callback["id"]].fn(True, other.space_id, "default")
+    assert "❌" in result[1]
+    assert Path(cached).exists()
+    assert assistant.study_spaces.path(other.space_id).exists()
+
+
+def test_postcommit_space_cleanup_failure_still_removes_unreferenced_cache(make_assistant, sample_pdf, tmp_path, monkeypatch):
+    import shutil
+    from gradio import processing_utils
+
+    monkeypatch.setenv("GRADIO_TEMP_DIR", str(tmp_path / "gradio-cache"))
+    assistant = make_assistant()
+    other = assistant.create_study_space("Finance Final")
+    document = assistant.library.add_file(sample_pdf).document
+    cached = processing_utils.save_file_to_cache(document.pages[0].image_path, str(tmp_path / "gradio-cache"))
+    assistant.switch_study_space("default")
+    original = shutil.rmtree
+
+    def fail_quarantine_cleanup(path, *args, **kwargs):
+        if Path(path).name.startswith(".deleting-"):
+            raise OSError("locked source")
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(shutil, "rmtree", fail_quarantine_cleanup)
+    app = build_app(assistant)
+    components = {c["id"]: c for c in app.config["components"]}
+    callback = next(d for d in app.config["dependencies"]
+                    if any(components[t[0]]["props"].get("value") == "Delete permanently"
+                           for t in d["targets"] if t[0] in components))
+    result = app.fns[callback["id"]].fn(True, other.space_id, "default")
+    assert "❌" in result[1]
+    assert other.space_id not in {s.space_id for s in assistant.study_spaces.list()}
+    assert not Path(cached).exists()
+    assert list(assistant.study_spaces.profiles_dir.glob(".deleting-*"))  # failure surfaced; files remain
+
+
+def test_deleting_space_preserves_shared_image_cache_used_by_another_space(make_assistant, sample_pdf, tmp_path, monkeypatch):
+    from gradio import processing_utils
+
+    monkeypatch.setenv("GRADIO_TEMP_DIR", str(tmp_path / "gradio-cache"))
+    assistant = make_assistant()
+    first = assistant.library.add_file(sample_pdf).document
+    other = assistant.create_study_space("Finance Final")
+    duplicate = assistant.library.add_file(sample_pdf).document
+    shared = processing_utils.save_file_to_cache(duplicate.pages[0].image_path, str(tmp_path / "gradio-cache"))
+    assert Path(shared).exists()
+    assistant.switch_study_space("default")
+    assert assistant.library.get_page(first.doc_id, 1).image_path != duplicate.pages[0].image_path
+    app = build_app(assistant)
+    components = {c["id"]: c for c in app.config["components"]}
+    callback = next(d for d in app.config["dependencies"]
+                    if any(components[t[0]]["props"].get("value") == "Delete permanently"
+                           for t in d["targets"] if t[0] in components))
+    result = app.fns[callback["id"]].fn(True, other.space_id, "default")
+    assert "deleted" in result[1]
+    assert Path(shared).exists()  # the active space still uses this URL
+
+
+def test_removing_document_preserves_shared_cache_used_by_other_space(make_assistant, sample_pdf, tmp_path, monkeypatch):
+    from gradio import processing_utils
+
+    monkeypatch.setenv("GRADIO_TEMP_DIR", str(tmp_path / "gradio-cache"))
+    assistant = make_assistant()
+    first = assistant.library.add_file(sample_pdf).document
+    assistant.create_study_space("Finance Final")
+    duplicate = assistant.library.add_file(sample_pdf).document
+    cached = processing_utils.save_file_to_cache(duplicate.pages[0].image_path, str(tmp_path / "gradio-cache"))
+    assistant.switch_study_space("default")
+    app = build_app(assistant)
+    components = {c["id"]: c for c in app.config["components"]}
+    callback = next(d for d in app.config["dependencies"]
+                    if any(components[t[0]]["props"].get("value") == "Remove"
+                           for t in d["targets"] if t[0] in components))
+    result = app.fns[callback["id"]].fn(first.doc_id, "default")
+    assert "Removed" in result[0]
+    assert Path(cached).exists()
 
 
 def test_rename_keeps_documents_and_active_selection_after_restart(make_assistant, sample_md):

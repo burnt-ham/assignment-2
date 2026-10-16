@@ -175,6 +175,60 @@ def test_bad_questions_are_dropped(changes):
     assert good == [] and len(problems) == 1
 
 
+def test_blind_answer_check_rejects_wrong_key_then_regenerates(make_assistant, sample_pdf):
+    wrong = question(
+        question="What does RAG retrieve?", options=["Relevant information", "Model weights", "Passwords", "Nothing"],
+        correct_option="B", quote="retrieves relevant information", concept="RAG",
+        learning_target="Identify what RAG retrieves",
+    )
+    corrected = {**wrong, "correct_option": "A"}
+    verdict = {"checks": [{"number": 1, "correct_option": "A", "quote": "retrieves relevant information"}]}
+    chat = FakeChat([{"questions": [wrong]}, verdict, {"questions": [corrected]}, verdict])
+    assistant = make_assistant(chat=chat)
+    doc = assistant.library.add_file(sample_pdf).document
+
+    quiz = assistant.quiz_maker.make_quiz([doc.doc_id], count=1)
+
+    assert quiz.questions[0].options[quiz.answer_key[0]] == "Relevant information"
+    assert len(chat.calls) == 4
+    assert any("answer key" in note for note in quiz.notes)
+    assert "correct_option" not in chat.calls[1]["user"]
+
+
+def test_failed_answer_checks_use_source_based_offline_quiz(make_assistant, sample_pdf):
+    draft = question(
+        question="What does RAG retrieve?", options=["Relevant information", "Model weights", "Passwords", "Nothing"],
+        correct_option="B", quote="retrieves relevant information", concept="RAG",
+        learning_target="Identify what RAG retrieves",
+    )
+    verdict = {"checks": [{"number": 1, "correct_option": "", "quote": ""}]}
+    chat = FakeChat([{"questions": [draft]}, verdict] * 3)
+    assistant = make_assistant(chat=chat)
+    doc = assistant.library.add_file(sample_pdf).document
+
+    quiz = assistant.quiz_maker.make_quiz([doc.doc_id], count=1)
+
+    assert quiz.source == "offline generator"
+    assert quiz.questions[0].options[quiz.answer_key[0]].lower() in quiz.questions[0].evidence.text.lower()
+    assert any("answer check" in note for note in quiz.notes)
+    assert len(chat.calls) == 6
+
+
+def test_checked_question_does_not_show_unsupported_writer_explanation(make_assistant, sample_pdf):
+    draft = question(
+        question="What does RAG retrieve?", options=["Relevant information", "Weights", "Passwords", "Nothing"],
+        quote="retrieves relevant information", explanation="RAG retrieves passwords, not information.",
+    )
+    verdict = {"checks": [{"number": 1, "correct_option": "A", "quote": "retrieves relevant information"}]}
+    assistant = make_assistant(chat=FakeChat([{"questions": [draft]}, verdict]))
+    doc = assistant.library.add_file(sample_pdf).document
+
+    quiz = assistant.quiz_maker.make_quiz([doc.doc_id], count=1)
+
+    assert "passwords" not in quiz.questions[0].explanation.lower()
+    assert quiz.questions[0].quote == "retrieves relevant information"
+
+
 def test_replaces_rejected_questions_up_to_requested_count(make_assistant, sample_pdf):
     first = question(
         question="What does RAG retrieve?",
@@ -189,12 +243,17 @@ def test_replaces_rejected_questions_up_to_requested_count(make_assistant, sampl
         quote="adds it to the model context",
         concept="RAG", learning_target="Explain how RAG augments model context",
     )
-    chat = FakeChat([{"questions": [first, invalid]}, {"questions": [replacement]}])
+    chat = FakeChat([
+        {"questions": [first, invalid]},
+        {"checks": [{"number": 1, "correct_option": "A", "quote": first["quote"]}]},
+        {"questions": [replacement]},
+        {"checks": [{"number": 1, "correct_option": "A", "quote": replacement["quote"]}]},
+    ])
     assistant = make_assistant(chat=chat)
     doc = assistant.library.add_file(sample_pdf).document
     quiz = assistant.quiz_maker.make_quiz([doc.doc_id], count=2)
     assert len(quiz.questions) == 2
-    assert len(chat.calls) == 2
+    assert len(chat.calls) == 4
     assert quiz.questions[1].question == replacement["question"]
     assert any("dropped" in note for note in quiz.notes)
 
@@ -209,12 +268,17 @@ def test_malformed_question_does_not_discard_valid_batchmate(make_assistant, sam
         options=["Retrieved information", "Weights", "Keys", "Nothing"],
         quote="adds it to the model context", concept="RAG", learning_target="Explain context augmentation",
     )
-    chat = FakeChat([{"questions": [first, {"question": "Missing options"}]}, {"questions": [replacement]}])
+    chat = FakeChat([
+        {"questions": [first, {"question": "Missing options"}]},
+        {"checks": [{"number": 1, "correct_option": "A", "quote": first["quote"]}]},
+        {"questions": [replacement]},
+        {"checks": [{"number": 1, "correct_option": "A", "quote": replacement["quote"]}]},
+    ])
     assistant = make_assistant(chat=chat)
     doc = assistant.library.add_file(sample_pdf).document
     quiz = assistant.quiz_maker.make_quiz([doc.doc_id], count=2)
     assert [q.question for q in quiz.questions] == [first["question"], replacement["question"]]
-    assert len(chat.calls) == 2
+    assert len(chat.calls) == 4
     assert any("dropped" in note for note in quiz.notes)
 
 
@@ -231,12 +295,19 @@ def test_reworded_same_answer_target_gets_replaced(make_assistant, sample_pdf):
         question="What does RAG add to the model context?", options=["Retrieved information", "Weights", "Keys", "Nothing"],
         quote="adds it to the model context", concept="RAG", learning_target="Explain how RAG augments context",
     )
-    chat = FakeChat([{"questions": [first]}, {"questions": [reworded]}, {"questions": [different]}])
+    chat = FakeChat([
+        {"questions": [first]},
+        {"checks": [{"number": 1, "correct_option": "A", "quote": first["quote"]}]},
+        {"questions": [reworded]},
+        {"checks": [{"number": 1, "correct_option": "A", "quote": reworded["quote"]}]},
+        {"questions": [different]},
+        {"checks": [{"number": 1, "correct_option": "A", "quote": different["quote"]}]},
+    ])
     assistant = make_assistant(chat=chat)
     doc = assistant.library.add_file(sample_pdf).document
     quiz = assistant.quiz_maker.make_quiz([doc.doc_id], count=2)
     assert [q.question for q in quiz.questions] == [first["question"], different["question"]]
-    assert len(chat.calls) == 3
+    assert len(chat.calls) == 6
 
 
 def test_keeps_valid_questions_if_replacement_service_fails(make_assistant, sample_pdf):
@@ -247,11 +318,14 @@ def test_keeps_valid_questions_if_replacement_service_fails(make_assistant, samp
 
     class FailAfterFirst(FakeChat):
         def complete(self, *args, **kwargs):
-            if self.calls:
+            if len(self.calls) >= 2:
                 raise ServiceError("replacement request failed")
             return super().complete(*args, **kwargs)
 
-    chat = FailAfterFirst([{"questions": [first]}])
+    chat = FailAfterFirst([
+        {"questions": [first]},
+        {"checks": [{"number": 1, "correct_option": "A", "quote": first["quote"]}]},
+    ])
     assistant = make_assistant(chat=chat)
     doc = assistant.library.add_file(sample_pdf).document
     quiz = assistant.quiz_maker.make_quiz([doc.doc_id], count=2)
@@ -266,6 +340,9 @@ def test_answer_key_is_fixed_and_scores_match(make_assistant, sample_pdf):
     replies = [{"questions": [
         question(question="What does RAG retrieve?", options=["Relevant information", "Model weights", "Passwords", "Nothing"], quote=quote),
         question(question="What does RAG add to the model context?", options=["Retrieved information", "Random text", "Images only", "Nothing"], correct_option="A", quote=quote),
+    ]}, {"checks": [
+        {"number": 1, "correct_option": "A", "quote": quote},
+        {"number": 2, "correct_option": "A", "quote": quote},
     ]}]
     assistant = make_assistant(chat=FakeChat(replies))
     doc = assistant.library.add_file(sample_pdf).document
@@ -296,7 +373,8 @@ def test_offline_questions_are_answerable_from_their_source():
         assert answer.lower() in q.evidence.text.lower()
         assert "_____" in q.question and answer.lower() not in q.question.lower()
         assert q.concept == q.evidence.title
-        assert q.learning_target == f"Recall the source term: {answer}"
+        assert q.learning_target == "Recall a key term from the cited passage"
+        assert answer.lower() not in q.learning_target.lower()
 
 
 def test_unfocused_quiz_draws_evidence_from_each_document(make_assistant, sample_pdf, sample_md):
