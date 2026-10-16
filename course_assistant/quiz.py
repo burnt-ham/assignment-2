@@ -31,7 +31,7 @@ Rules:
 - "correct_option" is the letter of the correct option: "A", "B", "C" or "D". Vary which letter is correct.
 - "explanation" says why the correct option is right, in one or two sentences.
 - "evidence_id" names the evidence the question comes from (like "E3").
-- "quote" is a short phrase copied word for word from that evidence that supports the correct answer. For image evidence, describe what the image shows instead.
+- "quote" is a short phrase copied word for word from that evidence that supports the correct answer, without the evidence label (document name, slide or page number). For image evidence, describe what the image shows instead.
 - "concept" is a concise, reusable subject concept grounded in that evidence (e.g. "Reranking", not a course week or document title).
 - "learning_target" is one specific skill or idea being tested within that concept, phrased as an action (e.g. "Explain why reranking changes the final RAG context").
 

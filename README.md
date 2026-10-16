@@ -3,31 +3,33 @@
 A Python app that answers questions about the course materials and makes practice quizzes. It searches the slides by keyword, by meaning, and by what the slide images look like (hybrid RAG). It shows the actual slide behind every answer, and it says so when the materials don't cover a question.
 
 > **Status: tested against the class AI services.**
-> The first version was built and tested offline, with built-in stand-ins instead of the class models. Anything below marked "offline" still describes those runs. Since then, all five class services have been connected: on a Windows laptop (2026-10-08 and 2026-10-09) for the evaluation questions, a reranking on/off comparison and a quiz check, and on a Mac for adding and removing materials. The embedding and reranker request formats were also confirmed with live tests. See [What was tested and what wasn't](#what-was-tested-and-what-wasnt).
+> The first version was built and tested offline, with built-in stand-ins instead of the class models. Anything below marked "offline" still describes those runs. Since then, all five class services have been connected: on a Windows laptop (2026-10-08 and 2026-10-09) for the evaluation questions, a reranking on/off comparison and a quiz check, and on a Mac for adding and removing materials and for Study Spaces and Quiz 2.0 (2026-10-12). The embedding and reranker request formats were also confirmed with live tests. See [What was tested and what wasn't](#what-was-tested-and-what-wasnt).
 
 Other project docs: [PLAN.md](PLAN.md) (build plan and issues), [docs/assignment-summary.md](docs/assignment-summary.md), [docs/decisions.md](docs/decisions.md), [docs/course-materials.md](docs/course-materials.md).
 
 ## Screenshots
 
-**Current Study Spaces, Ask and Quiz interface (offline demo, 2026-10-15).** These were captured from a running copy of this branch using a small generated three-page PDF. They demonstrate the UI and offline flow, **not** live class-service quality or a teammate's fresh-clone check:
+Taken by Kristen on 2026-10-15 from the final app (`main` plus PRs #22 and #23), with all five class services connected and the five course decks plus the syllabus loaded. The browser toolbar was cropped out.
 
-![Study Spaces and Materials in the current offline UI](docs/images/study-spaces-current-offline.png)
+**An answer with its supporting slide image.** The question "Find the meme about vibe coding on "Prod" and explain it" was asked across all documents, with no document filter. The class chat model described the meme and cited Week 2 slide 33, and the original slide is shown next to the answer. The app also listed slide 27 as a source but marked it "source text match not found", so the reader can see that citation wasn't confirmed:
 
-![Ask with an offline answer and source page](docs/images/ask-current-offline.png)
+![Answer with the source slide image](docs/images/answer-with-slide-final.png)
 
-![Quiz with question feedback and cited page](docs/images/quiz-2-current-offline.png)
+**Quiz feedback with sources.** A 3-question Quiz 2.0 quiz on the Week 5 deck with the topic "reranking", written by the class chat model. Each question shows its concept and learning target. The answer stays hidden until you click **Check answer** or **Show answer**. After checking, the feedback shows whether you were right, the source (Week 5 slide 18) and the original slide image:
 
-The screenshots below show earlier offline runs with the Week 2 course deck.
+![Quiz feedback with the source slide](docs/images/quiz-feedback-final.png)
 
-**An answer with its source slide image** (offline mode, searching Week 2 for the "Vibe Coding on 'Prod'" meme). The sources list the deck and slide number, compare quoted text or words against the source, and show the slide image. Neither matching words nor an attached image proves the answer is correct:
+**The Materials tab with Study Spaces.** The active Study Space and the six documents in its library:
 
-![Answer with the source slide image](docs/images/answer-with-slide.png)
+![Materials tab with the Study Space selector](docs/images/materials-study-spaces-final.png)
 
-**Quiz feedback with sources** (offline mode). The answer stays hidden until you check your answer or ask to see it. Feedback shows the correct option, the source and the original slide:
+**Dark mode.** The same meme question in dark mode. Text and controls stay readable, and slide images keep their white background:
 
-![Quiz feedback with the source slide](docs/images/quiz-feedback.png)
+![Answer in dark mode](docs/images/answer-dark-mode-final.png)
 
-Dark mode ([screenshot](docs/images/answer-dark-mode.png)) and the Materials tab ([screenshot](docs/images/materials.png)) were also checked.
+Earlier screenshots, taken 2026-10-09 before Study Spaces and Quiz 2.0 were merged, are kept for reference: [answer](docs/images/answer-with-slide-live.png), [quiz feedback](docs/images/quiz-feedback-live.png), [quiz feedback in dark mode](docs/images/quiz-feedback-dark-live.png).
+
+An offline demo of the current interface, made on 2026-10-15 with a small generated PDF instead of the course decks and without the class services, shows the same screens: [Study Spaces and Materials](docs/images/study-spaces-current-offline.png), [Ask](docs/images/ask-current-offline.png), [Quiz](docs/images/quiz-2-current-offline.png).
 
 ## Setup
 
@@ -89,11 +91,11 @@ If nothing in the materials supports an answer, the app says so instead of guess
 
 **Quiz tab:** pick documents, optionally type a topic, choose how many questions, and click **Make quiz**. The button immediately shows generation progress and is disabled until the quiz succeeds or fails. For each question, pick an answer and click **Check answer**, or click **Show answer** to see it without scoring. The score counts only checked answers. The answer key is fixed when the quiz is made; feedback shows the cited passage or slide.
 
-### Quiz 2.0 creation work (in progress)
+### Quiz 2.0: how questions are written and checked
 
 Model-written questions now carry a reusable **concept** and a specific **learning target**, shown beside each question; the quiz header summarizes concept coverage. A topic filters retrieval, while an unfocused quiz draws evidence across selected documents and across each long document. Creation checks source IDs and text quotes, four nonblank choices distinct after case/whitespace normalization, course-section labels masquerading as concepts, and generic all/none options. A second model pass sees the questions, choices and cited evidence **without the writer's answer key or explanation**; it must choose one supported answer and provide a source phrase. Disagreement, ambiguity, invalid checks or unsupported quotes reject the question. Accepted questions show the checked source excerpt instead of an unverified writer explanation. Choices are displayed as written, so scientific names and programming syntax are not silently changed. Rejected or repeated questions trigger up to two bounded replacement batches rather than silently shrinking the quiz. If none pass, or the service fails, the app uses simpler source-based term-recall questions; previously accepted questions remain if replacement fails. Service error details are not shown to students.
 
-**Quality limit:** a second pass using the same model is corroboration, not proof: it can agree with a wrong key, cite an unrelated phrase, or be misled by instructions embedded in course material. Learners do not have to validate answers to use the quiz; the team should still periodically evaluate real model output against its source material. Persistent question banks, attempts, study statuses, adaptive review and Study Space-scoped history are later Quiz 2.0 work, not part of this creation slice.
+**Quality limit:** a second pass using the same model is corroboration, not proof: it can agree with a wrong key, cite an unrelated phrase, or be misled by instructions embedded in course material. Learners do not have to validate answers to use the quiz; the team should still periodically evaluate real model output against its source material. Before this second pass was added, Kristen checked 15 Quiz 2.0 questions from the class chat model by hand: every quote appeared in its cited source and every answer key was correct. Persistent question banks, attempts, study statuses, adaptive review and Study Space-scoped history are later Quiz 2.0 work, not part of this creation slice.
 
 ### Supported files
 
@@ -130,7 +132,7 @@ Speaker notes in PowerPoint files are not read. Repeated headers and footers (li
 | Answer generation | Send the best text chunks and slide images to the vision chat model with answering rules; it must reply in JSON with separate `answer` and `sources` fields | `answering.py` | Class chat model |
 | Checks | Validate the JSON (with one retry), drop citations to evidence that wasn't supplied, check each quote appears in its source, and withhold answers nothing supports | `answering.py` | Your computer |
 | Quizzes | Same retrieval, a quiz-writing prompt, then checks for 4 distinct options, one valid correct answer, and a real supporting quote | `quiz.py` | Your computer + class chat model |
-| Interface | Gradio app with Materials, Ask and Quiz tabs | `app.py` | Your computer |
+| Interface | Gradio app with a Study Space selector and Materials, Ask and Quiz tabs | `app.py` | Your computer |
 
 Reranking **defaults to off** (`USE_RERANK=false` in `.env`). Our comparison found it didn't improve answers or citations on our questions and made each answer about 2.5 times slower (see [Evaluation](#evaluation)). To use it, set `USE_RERANK=true`, or tick **Rerank results with the class multimodal reranker** on the Ask tab for a single question.
 
@@ -144,11 +146,11 @@ Reranking **defaults to off** (`USE_RERANK=false` in `.env`). Our comparison fou
 python -m pytest
 ```
 
-The offline suite uses fake AI services and local sample files; the three tests in `tests/test_services_live.py` call the real class services only when configured. On 2026-10-15, this branch ran **154 passed, 8 skipped** on Windows without class credentials or LibreOffice (the four Office conversion tests were skipped). GitHub Actions is configured to run the offline suite on Python 3.11 and 3.12 with LibreOffice installed; it does not supply class-service credentials. A green CI run would check these offline workflows, not live class-service answer quality.
+163 automated tests. All but 3 need no internet or class services, because they use fake AI services and local sample files. The 3 tests in `tests/test_services_live.py` call the real class services only when `.env` points at them. GitHub Actions runs the offline suite on Python 3.11 and 3.12 with LibreOffice installed; it does not supply class-service credentials, so a green run checks the offline workflows, not live answer quality.
 
 **Fresh-clone check (public `main`, 2026-10-15):** in a separate clean directory on Windows, Python 3.12 created a new virtual environment, installed `requirements.txt` successfully (`pip check` found no broken requirements), and ran **138 passed, 8 skipped** without credentials. The app returned HTTP 200 on localhost; a separate offline smoke flow added a Markdown sample, answered with a citation, made a one-question quiz and graded it 1/1. LibreOffice was not installed on that machine, so this does not establish Office conversion or live class-service behavior. This check was independent of the uncommitted changes and does not replace another teammate's final review.
 
-- **Unit tests** (`tests/test_ingest.py`, `test_library.py`, `test_retrieval.py`, `test_answering.py`, `test_quiz.py`, `test_config.py`) check individual parts: reading PDF, Markdown and PowerPoint files, chunking with source details, duplicate detection, removal, rank fusion, JSON parsing, quote checks, dropping invented citations, quiz validation, scoring, the fixed answer key, and that keys never appear in error messages.
+- **Unit tests** (`tests/test_ingest.py`, `test_library.py`, `test_retrieval.py`, `test_answering.py`, `test_quiz.py`, `test_quiz_ui.py`, `test_ui_rendering.py`, `test_config.py`) check individual parts: reading PDF, Markdown and PowerPoint files, chunking with source details, duplicate detection, removal, rank fusion, JSON parsing, quote checks, dropping invented citations, quiz validation, scoring, the fixed answer key, and that keys never appear in error messages.
 - **End-to-end tests** (`tests/test_end_to_end.py`) run complete workflows: add files, repeat an upload, ask text and image questions, make and score a quiz, remove a document and confirm answers no longer use it, questions the materials can't answer, and the chat model and reranker both being down.
 - **Study Space tests** (`tests/test_study_spaces.py`) check isolated uploads/search across spaces, migration with page images, UI controls, deletion, renaming and restart persistence.
 
@@ -209,7 +211,9 @@ After both fixes, both settings scored 8/8 on the automatic check in three runs,
 
 **Investigated: blank slide images from animated GIFs.** Comparing Week 2 with PowerPoint's own PDF export showed slide 37 as an empty box: LibreOffice skipped its 3002 x 1728, 241-frame GIF. Smaller GIFs drew fine, so the test GIF in `tests/test_ingest.py` couldn't reproduce the original failure. The fix replaces every animated GIF with a single still frame before conversion. Picking the first frame fixed slide 37, but Week 5 slide 8's animation starts blank, so the app picks the most detailed frame instead. This also halved Week 2's conversion time, from about 2 minutes to 1.
 
-**Investigated: the meme question without a document filter (offline).** Asking "Find the meme about Vibe Coding on 'Prod' in the Week 2 slides" across all documents returned syllabus page 7 first and the meme slide second. The syllabus schedule mentions "Week 2", "Vibe Coding" and other query words, so word-overlap scoring ranked it higher. The meme slide itself has only its title as text. Limiting the search to the Week 2 deck put slide 33 first (see the screenshot). With the class visual embedding model and reranker, the image itself should be matched, so the team should rerun this to confirm.
+**Investigated: the meme question without a document filter.** Offline, asking "Find the meme about Vibe Coding on 'Prod' in the Week 2 slides" across all documents returned syllabus page 7 first and the meme slide second. The syllabus schedule mentions "Week 2", "Vibe Coding" and other query words, so word-overlap scoring ranked it higher, and the meme slide itself has only its title as text. With the class services connected, the same question across all documents found and cited Week 2 slide 33 in all three evaluation runs, with reranking on and off (see the first screenshot). Matching the slide image, and the meme text that the document parser reads from it, most likely make the difference.
+
+**Investigated: the meme answer withheld as unsupported (issue #20).** In a later live run, the meme answer was withheld every time with "The answer wasn't backed by any checkable source", even though slide 33 was found. The chat model had copied the evidence label into its quote ("Week 2 - LLM Fundamentals.pptx, slide 33 (text excerpt) Vibe Coding on "Prod""), and those label words aren't on the slide, so the quote check failed. The quote check now ignores a leading label (PR #21), and the answer and quiz prompts tell the model not to copy the label.
 
 Other limitations:
 - **Image descriptions aren't checked automatically.** The chat model sometimes adds details that aren't in the picture (see Q6 above), and how much it describes varies from run to run. The slide image is shown next to the answer so you can compare.
@@ -219,6 +223,7 @@ Other limitations:
 - **Animations become one still image.** A GIF is replaced by its most detailed frame. This usually shows the finished diagram, but it can differ from the paused PowerPoint view: Week 5 slide 8's animation starts as an empty box, and the app shows the completed diagram instead. Videos show only their preview image.
 - **Speed:** on a Mac with the class services connected, adding a deck takes about 1 to 3.5 minutes, mostly embedding every slide image. LibreOffice conversion alone takes about 30 to 60 seconds per deck.
 - **One user at a time:** the library is shared by everyone using the same running app.
+- **Moving the data folder:** if `data/` is moved or copied before the first launch of this version, the Study Spaces migration refuses to run ("legacy image path points outside the library") and the app doesn't start. Kristen found this in her live check.
 
 ## What was tested and what wasn't
 
@@ -233,7 +238,8 @@ Other limitations:
 | Evaluation script runs | Offline dry run, saved in `eval/results/` |
 | All five class services, the Ask tab and the evaluation questions with the real models | On Windows, 2026-10-08: all five services answered, the five decks and the syllabus loaded with LibreOffice, and the 8 questions plus 3 reranking on/off runs completed (see [Evaluation](#evaluation)) |
 | Answer quality with the real chat model | Run 3 answers graded by hand ([eval/results/live-rerank-summary.md](eval/results/live-rerank-summary.md)) |
-| Quizzes with the real chat model (the current quiz code, before Quiz 2.0) | 3 quizzes (15 questions) checked by hand against the slides and syllabus. Every question was answerable and every key was correct. The answer key stayed fixed across regrading, and solutions stayed hidden until checked or shown ([eval/results/live-quiz-check.md](eval/results/live-quiz-check.md)) |
+| Quizzes with the real chat model (the quiz code before Quiz 2.0) | 3 quizzes (15 questions) checked by hand against the slides and syllabus. Every question was answerable and every key was correct. The answer key stayed fixed across regrading, and solutions stayed hidden until checked or shown ([eval/results/live-quiz-check.md](eval/results/live-quiz-check.md)) |
+| Study Spaces and Quiz 2.0 with the class services | Mac, 2026-10-12 (Kristen, on the merged code): the existing 8-document library migrated into "My Study Space"; a second space with only the syllabus answered a syllabus question with citations and said the meme wasn't in that space; switching back kept all 8 documents; deleting the second space removed its folder. Quiz 2.0: 3 quizzes (15 questions), every quote found in its source, every key checked by hand, and grading matched the key |
 | Materials on a Mac with the class services (issue #4) | Mac, Python 3.11, LibreOffice 26.8 from Homebrew. The repo has no automatic test runs (CI), so these results are from that machine. All five decks and the syllabus added (149 slides and pages); the same file and a renamed copy were both refused as duplicates; removing Week 2 deleted its 45 text and 42 image index entries and its files, and searches stopped returning it. All three searches ranked Week 2 slide 33 first for "Vibe Coding on Prod meme". |
 | A second reranking on/off run (PR #19) | Two runs measured before the answer fixes in PR #17 and with the document parser off: reranking off 8/8 then 7/8 correct, on 5/8 then 4/8, with the right source retrieved every time. The misses came from the answer bugs that PR #17 fixed, so the post-fix runs above are the ones we report. The conclusion is the same: keep reranking off by default. |
 | Document parser (port 9005) | Confirmed connected in PR #17's live runs: slide text includes OCR output (`[Text read from the image] … ONE DOES NOT SIMPLY VIBE CODE…` on Week 2 slide 33, from `dots.mocr`). Request format works against the class service. |

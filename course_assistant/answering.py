@@ -29,7 +29,7 @@ Rules:
 - If the evidence does not answer the question, set "found" to false and say briefly that the materials don't cover it.
 - When an image is relevant, describe what it actually shows: the people, objects or scene pictured, the structure of a diagram or chart, and what a meme means, not only the words printed on it.
 - Cite every piece of evidence you rely on in "sources", using its id (like "E2").
-- For text evidence, "quote" must be copied word for word from that evidence (a short phrase or sentence).
+- For text evidence, "quote" must be copied word for word from that evidence (a short phrase or sentence). Copy only the evidence text itself, never its label (the document name, slide or page number, or "(text excerpt)").
 - For image evidence, "quote" may be a short description of what the image shows.
 
 Reply with JSON only, in exactly this shape:
